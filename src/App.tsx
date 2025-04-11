@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import TablesPage from "./pages/TablesPage";
 import OrdersPage from "./pages/OrdersPage";
 import MenuPage from "./pages/MenuPage";
+import UsersPage from "./pages/UsersPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -50,6 +51,7 @@ const AppRoutes = () => {
         <Route path="/tables" element={<TablesPage />} />
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/menu" element={<MenuPage />} />
+        <Route path="/users" element={<UsersPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

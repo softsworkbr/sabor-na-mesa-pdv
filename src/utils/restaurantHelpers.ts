@@ -50,6 +50,51 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
   }
 };
 
+export interface UserWithRole {
+  id: string;
+  email?: string;
+  username?: string;
+  full_name?: string;
+  avatar_url?: string;
+  role: 'owner' | 'manager' | 'staff';
+}
+
+export const getUsersForRestaurant = async (restaurantId: string): Promise<UserWithRole[]> => {
+  try {
+    // Get all users associated with this restaurant
+    const { data, error } = await supabase
+      .from('restaurant_users')
+      .select(`
+        user_id,
+        role,
+        profiles:user_id(id, email, username, full_name, avatar_url)
+      `)
+      .eq('restaurant_id', restaurantId);
+
+    if (error) {
+      toast.error(`Erro ao buscar usuários: ${error.message}`);
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+
+    // Transform the data into a more usable format
+    return data.map(item => ({
+      id: item.profiles?.id || item.user_id,
+      email: item.profiles?.email,
+      username: item.profiles?.username,
+      full_name: item.profiles?.full_name,
+      avatar_url: item.profiles?.avatar_url,
+      role: item.role
+    }));
+  } catch (error: any) {
+    console.error('Error fetching users for restaurant:', error);
+    return [];
+  }
+};
+
 export const addUserToRestaurant = async (
   restaurantId: string,
   email: string,
@@ -139,6 +184,31 @@ export const updateRestaurant = async (
     return true;
   } catch (error) {
     console.error('Error updating restaurant:', error);
+    return false;
+  }
+};
+
+export const updateUserRole = async (
+  restaurantId: string,
+  userId: string,
+  role: 'manager' | 'staff'
+) => {
+  try {
+    const { error } = await supabase
+      .from('restaurant_users')
+      .update({ role } as any)
+      .eq('restaurant_id', restaurantId)
+      .eq('user_id', userId);
+
+    if (error) {
+      toast.error(`Erro ao atualizar função do usuário: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Função do usuário atualizada com sucesso!');
+    return true;
+  } catch (error: any) {
+    console.error('Error updating user role:', error);
     return false;
   }
 };

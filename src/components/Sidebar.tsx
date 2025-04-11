@@ -21,6 +21,7 @@ const Sidebar = () => {
     { name: "Pedidos", icon: ShoppingCart, to: "/orders" },
     { name: "Mesas", icon: Layers, to: "/tables" },
     { name: "Cardápio", icon: Utensils, to: "/menu" },
+    { name: "Usuários", icon: Users, to: "/users" },
     { name: "Clientes", icon: Users, to: "/customers" },
     { name: "Pagamentos", icon: CreditCard, to: "/payments" },
     { name: "Relatórios", icon: BarChart3, to: "/reports" },
@@ -33,7 +34,7 @@ const Sidebar = () => {
     
     // Add more access based on role
     if (role === 'manager' || role === 'owner') {
-      allowedItems.push("Clientes", "Pagamentos", "Relatórios");
+      allowedItems.push("Clientes", "Pagamentos", "Relatórios", "Usuários");
     }
     
     // Only owners can access settings
