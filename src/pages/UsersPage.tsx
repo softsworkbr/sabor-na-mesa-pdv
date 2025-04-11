@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserWithRole, getUsersForRestaurant, addUserToRestaurant, removeUserFromRestaurant, updateUserRole } from '@/utils/restaurantHelpers';
+import { UserWithRole, getUsersForRestaurant, addUserToRestaurant, removeUserFromRestaurant, updateUserRole } from '@/utils/restaurant';
 import { 
   Table, 
   TableBody, 
@@ -165,7 +164,6 @@ const UsersPage = () => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
   };
 
-  // Prevent owner from being removed or role changed
   const isOwner = (role: string) => role === 'owner';
 
   return (
