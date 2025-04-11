@@ -50,6 +50,15 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
   }
 };
 
+// Define the profile interface to match expected structure
+interface Profile {
+  id?: string;
+  email?: string;
+  username?: string;
+  full_name?: string;
+  avatar_url?: string;
+}
+
 export interface UserWithRole {
   id: string;
   email?: string;
@@ -82,8 +91,8 @@ export const getUsersForRestaurant = async (restaurantId: string): Promise<UserW
 
     // Transform the data into a more usable format
     return data.map(item => {
-      // Handle potential null profiles
-      const profile = item.profiles || {};
+      // Handle potential null profiles with proper typing
+      const profile = (item.profiles || {}) as Profile;
       
       return {
         id: profile.id || item.user_id,
