@@ -145,3 +145,128 @@ export const updateRestaurant = async (
     throw error; // Modificado para propagar o erro para quem chamou a função
   }
 };
+
+// Product related functions
+
+export type CreateProductProps = {
+  name: string;
+  description?: string;
+  price: number;
+  category_id: string;
+  restaurant_id: string;
+  image_url?: string;
+  active?: boolean;
+};
+
+export type UpdateProductProps = Partial<CreateProductProps>;
+
+export const createProduct = async (data: CreateProductProps) => {
+  try {
+    const { data: product, error } = await supabase
+      .from('products')
+      .insert({
+        name: data.name,
+        description: data.description || null,
+        price: data.price,
+        category_id: data.category_id,
+        restaurant_id: data.restaurant_id,
+        image_url: data.image_url || null,
+        active: data.active !== undefined ? data.active : true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error(`Erro ao criar produto: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Produto criado com sucesso!');
+    return product;
+  } catch (error: any) {
+    console.error('Error creating product:', error);
+    throw error;
+  }
+};
+
+export const updateProduct = async (productId: string, data: UpdateProductProps) => {
+  try {
+    const { data: updatedProduct, error } = await supabase
+      .from('products')
+      .update(data)
+      .eq('id', productId)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error(`Erro ao atualizar produto: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Produto atualizado com sucesso!');
+    return updatedProduct;
+  } catch (error: any) {
+    console.error('Error updating product:', error);
+    throw error;
+  }
+};
+
+export const deleteProduct = async (productId: string) => {
+  try {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', productId);
+
+    if (error) {
+      toast.error(`Erro ao excluir produto: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Produto excluído com sucesso!');
+  } catch (error: any) {
+    console.error('Error deleting product:', error);
+    throw error;
+  }
+};
+
+export const getProductsByCategory = async (restaurantId: string, categoryId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .eq('category_id', categoryId)
+      .order('name');
+
+    if (error) {
+      toast.error(`Erro ao buscar produtos: ${error.message}`);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error: any) {
+    console.error('Error fetching products:', error);
+    throw error;
+  }
+};
+
+export const getProductsByRestaurant = async (restaurantId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, product_categories(name)')
+      .eq('restaurant_id', restaurantId)
+      .order('name');
+
+    if (error) {
+      toast.error(`Erro ao buscar produtos: ${error.message}`);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error: any) {
+    console.error('Error fetching products:', error);
+    throw error;
+  }
+};

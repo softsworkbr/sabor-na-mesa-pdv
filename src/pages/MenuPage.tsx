@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Search, 
   Plus, 
@@ -19,7 +20,8 @@ import {
   X,
   Save,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Image
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -56,14 +58,37 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getProductsByRestaurant,
+  getProductsByCategory,
+  CreateProductProps,
+  UpdateProductProps
+} from "@/utils/restaurant/restaurantManagement";
 
 interface MenuItem {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   price: number;
-  category: string;
-  imageUrl?: string;
+  category_id: string;
+  restaurant_id: string;
+  image_url: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  product_categories?: {
+    name: string;
+  }
 }
 
 interface ProductCategory {
@@ -84,75 +109,35 @@ const categorySchema = z.object({
   sort_order: z.number().default(0),
 });
 
+const productSchema = z.object({
+  name: z.string().min(1, { message: "Nome do produto é obrigatório" }),
+  description: z.string().optional(),
+  price: z.coerce.number().min(0.01, { message: "Preço deve ser maior que zero" }),
+  category_id: z.string().min(1, { message: "Categoria é obrigatória" }),
+  image_url: z.string().optional(),
+  active: z.boolean().default(true),
+});
+
 type CategoryFormValues = z.infer<typeof categorySchema>;
-
-const categories = [
-  { id: "main", name: "Principais", icon: UtensilsCrossed },
-  { id: "appetizers", name: "Entradas", icon: Salad },
-  { id: "burgers", name: "Hamburgers", icon: Utensils },
-  { id: "pizzas", name: "Pizzas", icon: Pizza },
-  { id: "desserts", name: "Sobremesas", icon: IceCream },
-  { id: "drinks", name: "Bebidas", icon: Coffee },
-  { id: "alcohol", name: "Álcool", icon: Wine },
-];
-
-const generateMenuItems = (): MenuItem[] => {
-  const items: MenuItem[] = [
-    // Main dishes
-    { id: "1", name: "Feijoada Completa", description: "Feijoada tradicional com arroz, farofa e couve.", price: 45.90, category: "main" },
-    { id: "2", name: "Picanha na Brasa", description: "Picanha grelhada com arroz, feijão e vinagrete.", price: 59.90, category: "main" },
-    { id: "3", name: "Parmegiana de Frango", description: "Filé de frango empanado coberto com molho de tomate e queijo.", price: 39.90, category: "main" },
-    { id: "4", name: "Filé à Parmegiana", description: "Filé mignon empanado com molho de tomate e queijo gratinado.", price: 55.90, category: "main" },
-    { id: "5", name: "Risoto de Camarão", description: "Risoto cremoso com camarões frescos.", price: 62.90, category: "main" },
-    
-    // Appetizers
-    { id: "6", name: "Bolinho de Bacalhau", description: "Porção com 12 unidades.", price: 32.90, category: "appetizers" },
-    { id: "7", name: "Isca de Peixe", description: "Isca de tilápia empanada com molho tártaro.", price: 28.90, category: "appetizers" },
-    { id: "8", name: "Coxinha de Frango", description: "Porção com 10 unidades.", price: 24.90, category: "appetizers" },
-    
-    // Burgers
-    { id: "9", name: "Hambúrguer Clássico", description: "Pão, hambúrguer, queijo, alface, tomate e maionese.", price: 29.90, category: "burgers" },
-    { id: "10", name: "Cheese Bacon", description: "Pão, hambúrguer, queijo, bacon, alface, tomate e maionese.", price: 34.90, category: "burgers" },
-    { id: "11", name: "Hambúrguer Duplo", description: "Pão, 2 hambúrgueres, queijo cheddar, bacon, cebola crispy e molho especial.", price: 39.90, category: "burgers" },
-    
-    // Pizzas
-    { id: "12", name: "Pizza Margherita", description: "Molho de tomate, mussarela, tomate e manjericão.", price: 45.90, category: "pizzas" },
-    { id: "13", name: "Pizza Calabresa", description: "Molho de tomate, mussarela e calabresa fatiada.", price: 49.90, category: "pizzas" },
-    { id: "14", name: "Pizza Quatro Queijos", description: "Molho de tomate, mussarela, provolone, gorgonzola e parmesão.", price: 52.90, category: "pizzas" },
-    
-    // Desserts
-    { id: "15", name: "Pudim de Leite", description: "Pudim de leite condensado tradicional.", price: 12.90, category: "desserts" },
-    { id: "16", name: "Petit Gateau", description: "Bolo de chocolate com centro cremoso acompanhado de sorvete de creme.", price: 19.90, category: "desserts" },
-    { id: "17", name: "Sorvete", description: "Duas bolas de sorvete com calda de chocolate.", price: 10.90, category: "desserts" },
-    
-    // Drinks
-    { id: "18", name: "Refrigerante", description: "Lata 350ml.", price: 6.90, category: "drinks" },
-    { id: "19", name: "Suco Natural", description: "Copo 300ml. Laranja, abacaxi, limão ou maracujá.", price: 8.90, category: "drinks" },
-    { id: "20", name: "Água Mineral", description: "Garrafa 500ml com ou sem gás.", price: 4.90, category: "drinks" },
-    
-    // Alcohol
-    { id: "21", name: "Cerveja", description: "Garrafa 600ml.", price: 12.90, category: "alcohol" },
-    { id: "22", name: "Caipirinha", description: "Cachaça, limão, açúcar e gelo.", price: 18.90, category: "alcohol" },
-    { id: "23", name: "Vinho Tinto", description: "Taça 150ml.", price: 22.90, category: "alcohol" },
-  ];
-  
-  return items;
-};
+type ProductFormValues = z.infer<typeof productSchema>;
 
 const MenuPage = () => {
   const { currentRestaurant } = useAuth();
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(generateMenuItems());
+  const [products, setProducts] = useState<MenuItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState("main");
+  const [activeCategory, setActiveCategory] = useState("all");
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
+  const [showProductDialog, setShowProductDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
+  const [editingProduct, setEditingProduct] = useState<MenuItem | null>(null);
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [showCategoriesTab, setShowCategoriesTab] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
   
-  const form = useForm<CategoryFormValues>({
+  const categoryForm = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
     defaultValues: {
       name: "",
@@ -163,9 +148,22 @@ const MenuPage = () => {
     },
   });
 
+  const productForm = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      price: 0,
+      category_id: "",
+      image_url: "",
+      active: true,
+    },
+  });
+
   useEffect(() => {
     if (currentRestaurant) {
       fetchProductCategories();
+      fetchProducts();
     }
   }, [currentRestaurant]);
 
@@ -190,10 +188,51 @@ const MenuPage = () => {
     }
   };
 
+  const fetchProducts = async () => {
+    if (!currentRestaurant) return;
+    
+    setIsLoading(true);
+    try {
+      const data = await getProductsByRestaurant(currentRestaurant.id);
+      setProducts(data as MenuItem[]);
+    } catch (error: any) {
+      console.error('Error fetching products:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchProductsByCategory = async (categoryId: string) => {
+    if (!currentRestaurant || categoryId === 'all') {
+      fetchProducts();
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const data = await getProductsByCategory(currentRestaurant.id, categoryId);
+      setProducts(data as MenuItem[]);
+    } catch (error: any) {
+      console.error('Error fetching products by category:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentRestaurant) {
+      if (activeCategory === 'all') {
+        fetchProducts();
+      } else {
+        fetchProductsByCategory(activeCategory);
+      }
+    }
+  }, [activeCategory, currentRestaurant]);
+
   const openCategoryDialog = (category?: ProductCategory) => {
     if (category) {
       setEditingCategory(category);
-      form.reset({
+      categoryForm.reset({
         name: category.name,
         description: category.description || "",
         has_extras: category.has_extras,
@@ -202,7 +241,7 @@ const MenuPage = () => {
       });
     } else {
       setEditingCategory(null);
-      form.reset({
+      categoryForm.reset({
         name: "",
         description: "",
         has_extras: false,
@@ -213,9 +252,39 @@ const MenuPage = () => {
     setShowCategoryDialog(true);
   };
 
+  const openProductDialog = (product?: MenuItem) => {
+    if (product) {
+      setEditingProduct(product);
+      productForm.reset({
+        name: product.name,
+        description: product.description || "",
+        price: product.price,
+        category_id: product.category_id,
+        image_url: product.image_url || "",
+        active: product.active,
+      });
+    } else {
+      setEditingProduct(null);
+      productForm.reset({
+        name: "",
+        description: "",
+        price: 0,
+        category_id: activeCategory !== 'all' ? activeCategory : "",
+        image_url: "",
+        active: true,
+      });
+    }
+    setShowProductDialog(true);
+  };
+
   const closeCategoryDialog = () => {
     setShowCategoryDialog(false);
     setEditingCategory(null);
+  };
+
+  const closeProductDialog = () => {
+    setShowProductDialog(false);
+    setEditingProduct(null);
   };
 
   const onSaveCategory = async (values: CategoryFormValues) => {
@@ -270,39 +339,94 @@ const MenuPage = () => {
     }
   };
 
+  const onSaveProduct = async (values: ProductFormValues) => {
+    if (!currentRestaurant) {
+      toast.error("Nenhum restaurante selecionado");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const productData = {
+        name: values.name,
+        description: values.description || null,
+        price: values.price,
+        category_id: values.category_id,
+        restaurant_id: currentRestaurant.id,
+        image_url: values.image_url || null,
+        active: values.active,
+      };
+
+      if (editingProduct) {
+        // Update existing product
+        await updateProduct(editingProduct.id, productData);
+      } else {
+        // Create new product
+        await createProduct(productData);
+      }
+      
+      // Refresh products list
+      if (activeCategory === 'all') {
+        await fetchProducts();
+      } else {
+        await fetchProductsByCategory(activeCategory);
+      }
+      
+      closeProductDialog();
+    } catch (error: any) {
+      toast.error(`Erro ao salvar produto: ${error.message}`);
+      console.error('Error saving product:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const confirmDeleteCategory = (categoryId: string) => {
     setCategoryToDelete(categoryId);
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteCategory = async () => {
-    if (!categoryToDelete) return;
-    
+  const confirmDeleteProduct = (productId: string) => {
+    setProductToDelete(productId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('product_categories')
-        .delete()
-        .eq('id', categoryToDelete);
-      
-      if (error) throw error;
-      
-      toast.success("Categoria excluída com sucesso!");
-      await fetchProductCategories();
+      if (categoryToDelete) {
+        const { error } = await supabase
+          .from('product_categories')
+          .delete()
+          .eq('id', categoryToDelete);
+        
+        if (error) throw error;
+        
+        toast.success("Categoria excluída com sucesso!");
+        await fetchProductCategories();
+        setCategoryToDelete(null);
+      } else if (productToDelete) {
+        await deleteProduct(productToDelete);
+        
+        if (activeCategory === 'all') {
+          await fetchProducts();
+        } else {
+          await fetchProductsByCategory(activeCategory);
+        }
+        setProductToDelete(null);
+      }
     } catch (error: any) {
-      toast.error(`Erro ao excluir categoria: ${error.message}`);
-      console.error('Error deleting product category:', error);
+      toast.error(`Erro ao excluir: ${error.message}`);
+      console.error('Error deleting:', error);
     } finally {
       setIsLoading(false);
       setDeleteDialogOpen(false);
-      setCategoryToDelete(null);
     }
   };
 
-  const filteredItems = menuItems.filter(item => 
-    (activeCategory === "all" || item.category === activeCategory) &&
-    (item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-     item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  const filteredProducts = products.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
@@ -324,10 +448,13 @@ const MenuPage = () => {
           </Button>
           <Button 
             className="bg-pos-primary hover:bg-pos-primary/90"
-            onClick={() => showCategoriesTab ? openCategoryDialog() : null}
+            onClick={() => showCategoriesTab 
+              ? openCategoryDialog() 
+              : openProductDialog()
+            }
           >
             <Plus className="h-4 w-4 mr-2" /> 
-            {showCategoriesTab ? "Nova Categoria" : "Novo Item"}
+            {showCategoriesTab ? "Nova Categoria" : "Novo Produto"}
           </Button>
         </div>
       </div>
@@ -407,39 +534,72 @@ const MenuPage = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input 
-              placeholder="Buscar itens..." 
+              placeholder="Buscar produtos..." 
               className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           
-          <Tabs defaultValue="main" value={activeCategory} onValueChange={setActiveCategory}>
+          <Tabs defaultValue="all" value={activeCategory} onValueChange={setActiveCategory}>
             <TabsList className="mb-4 flex overflow-x-auto pb-px">
               <TabsTrigger value="all">Todos</TabsTrigger>
-              {categories.map(category => (
-                <TabsTrigger key={category.id} value={category.id} className="flex items-center gap-2">
-                  <category.icon className="h-4 w-4" />
+              {productCategories.filter(cat => cat.active).map(category => (
+                <TabsTrigger key={category.id} value={category.id}>
                   {category.name}
                 </TabsTrigger>
               ))}
             </TabsList>
             
             <TabsContent value="all" className="p-0">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredItems.map(item => (
-                  <MenuItemCard key={item.id} item={item} />
-                ))}
-              </div>
+              {isLoading ? (
+                <div className="flex justify-center p-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-pos-primary" />
+                </div>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredProducts.length === 0 ? (
+                    <div className="col-span-full text-center py-8 text-muted-foreground">
+                      Nenhum produto encontrado. Adicione produtos clicando em "Novo Produto".
+                    </div>
+                  ) : (
+                    filteredProducts.map(product => (
+                      <MenuItemCard 
+                        key={product.id} 
+                        item={product} 
+                        onEdit={() => openProductDialog(product)}
+                        onDelete={() => confirmDeleteProduct(product.id)}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
             </TabsContent>
             
-            {categories.map(category => (
+            {productCategories.filter(cat => cat.active).map(category => (
               <TabsContent key={category.id} value={category.id} className="p-0">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredItems.map(item => (
-                    <MenuItemCard key={item.id} item={item} />
-                  ))}
-                </div>
+                {isLoading ? (
+                  <div className="flex justify-center p-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-pos-primary" />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredProducts.length === 0 ? (
+                      <div className="col-span-full text-center py-8 text-muted-foreground">
+                        Nenhum produto encontrado nesta categoria. Adicione produtos clicando em "Novo Produto".
+                      </div>
+                    ) : (
+                      filteredProducts.map(product => (
+                        <MenuItemCard 
+                          key={product.id} 
+                          item={product} 
+                          onEdit={() => openProductDialog(product)}
+                          onDelete={() => confirmDeleteProduct(product.id)}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
               </TabsContent>
             ))}
           </Tabs>
@@ -455,10 +615,10 @@ const MenuPage = () => {
             </DialogTitle>
           </DialogHeader>
           
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSaveCategory)} className="space-y-4">
+          <Form {...categoryForm}>
+            <form onSubmit={categoryForm.handleSubmit(onSaveCategory)} className="space-y-4">
               <FormField
-                control={form.control}
+                control={categoryForm.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
@@ -472,7 +632,7 @@ const MenuPage = () => {
               />
               
               <FormField
-                control={form.control}
+                control={categoryForm.control}
                 name="description"
                 render={({ field }) => (
                   <FormItem>
@@ -488,7 +648,7 @@ const MenuPage = () => {
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <FormField
-                    control={form.control}
+                    control={categoryForm.control}
                     name="has_extras"
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
@@ -512,7 +672,7 @@ const MenuPage = () => {
               </div>
               
               <FormField
-                control={form.control}
+                control={categoryForm.control}
                 name="active"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
@@ -534,7 +694,7 @@ const MenuPage = () => {
               />
               
               <FormField
-                control={form.control}
+                control={categoryForm.control}
                 name="sort_order"
                 render={({ field }) => (
                   <FormItem>
@@ -572,6 +732,190 @@ const MenuPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Product Edit/Create Dialog */}
+      <Dialog open={showProductDialog} onOpenChange={closeProductDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingProduct ? "Editar Produto" : "Novo Produto"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <Form {...productForm}>
+            <form onSubmit={productForm.handleSubmit(onSaveProduct)} className="space-y-4">
+              <FormField
+                control={productForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome do produto" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={productForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Descrição do produto (opcional)" 
+                        rows={3} 
+                        {...field} 
+                        value={field.value || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={productForm.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          min="0" 
+                          placeholder="0.00" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={productForm.control}
+                  name="category_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categoria</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a categoria" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {productCategories.map(category => (
+                            <SelectItem 
+                              key={category.id} 
+                              value={category.id}
+                            >
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={productForm.control}
+                name="image_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL da Imagem</FormLabel>
+                    <FormControl>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="URL da imagem (opcional)" 
+                          {...field} 
+                          value={field.value || ''}
+                        />
+                        {field.value && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              field.onChange('');
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      Adicione o link da imagem do produto
+                    </FormDescription>
+                    {field.value && (
+                      <div className="mt-2 border rounded-md overflow-hidden w-20 h-20 relative">
+                        <img 
+                          src={field.value} 
+                          alt="Prévia" 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://via.placeholder.com/100?text=Erro';
+                          }}
+                        />
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={productForm.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Produto Ativo</FormLabel>
+                      <FormDescription>
+                        Produtos inativos não são exibidos no cardápio
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="bg-gray-300 data-[state=checked]:bg-green-500"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={closeProductDialog}>
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="bg-pos-primary hover:bg-pos-primary/90"
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {editingProduct ? 'Atualizar' : 'Criar'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -581,15 +925,21 @@ const MenuPage = () => {
               Confirmar exclusão
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta categoria? Esta ação não pode ser desfeita.
+              {categoryToDelete 
+                ? "Tem certeza que deseja excluir esta categoria? Esta ação não pode ser desfeita."
+                : "Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita."
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setCategoryToDelete(null)}>
+            <AlertDialogCancel onClick={() => {
+              setCategoryToDelete(null);
+              setProductToDelete(null);
+            }}>
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleDeleteCategory}
+              onClick={handleDelete}
               className="bg-red-500 hover:bg-red-600"
             >
               {isLoading ? (
@@ -605,27 +955,52 @@ const MenuPage = () => {
   );
 };
 
-const MenuItemCard = ({ item }: { item: MenuItem }) => {
+const MenuItemCard = ({ 
+  item, 
+  onEdit,
+  onDelete 
+}: { 
+  item: MenuItem;
+  onEdit: () => void;
+  onDelete: () => void;
+}) => {
   return (
-    <Card>
+    <Card className={`${!item.active ? 'opacity-60' : ''}`}>
       <CardHeader className="p-4 pb-2">
         <div className="flex justify-between">
-          <CardTitle className="text-lg">{item.name}</CardTitle>
+          <CardTitle className="text-lg">
+            {item.name}
+            {!item.active && <span className="ml-2 text-xs font-normal py-1 px-2 bg-red-100 text-red-800 rounded-full">Inativo</span>}
+          </CardTitle>
           <div className="flex gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={onEdit}>
               <Edit className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={onDelete}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-4 pt-0">
-        <p className="text-sm text-gray-600 line-clamp-2 h-10">{item.description}</p>
+      <CardContent className="p-4 pt-2">
+        {item.image_url && (
+          <div className="w-full h-32 mb-3 overflow-hidden rounded-md">
+            <img 
+              src={item.image_url} 
+              alt={item.name} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x150?text=Imagem+não+disponível';
+              }}
+            />
+          </div>
+        )}
+        <p className="text-sm text-gray-600 line-clamp-2 h-10">{item.description || "Sem descrição"}</p>
         <div className="flex justify-between items-center mt-4">
           <p className="text-lg font-bold">R$ {item.price.toFixed(2)}</p>
-          <Button variant="outline" className="h-8">Adicionar ao Pedido</Button>
+          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+            {item.product_categories?.name || "Categoria desconhecida"}
+          </span>
         </div>
       </CardContent>
     </Card>
