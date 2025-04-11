@@ -10,6 +10,14 @@ export type {
   UserRoleUpdate
 } from './types';
 
+// Export table types
+export type {
+  TableItem,
+  TableStatus,
+  CreateTableProps,
+  UpdateTableProps
+} from './tableTypes';
+
 // Export restaurant management functions
 export {
   createRestaurant,
@@ -23,3 +31,12 @@ export {
   removeUserFromRestaurant,
   updateUserRole
 } from './userManagement';
+
+// Export table management functions
+export {
+  getTablesByRestaurant,
+  createTable,
+  updateTable,
+  deleteTable,
+  getTableById
+} from './tableManagement';

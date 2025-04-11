@@ -1,72 +1,26 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   Plus, 
   Search,
-  ShoppingCart,
-  Printer,
-  ArrowLeft,
-  MoreHorizontal
+  RefreshCw,
+  Loader2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import TableOrderDrawer from "@/components/TableOrderDrawer";
-
-type TableStatus = "free" | "occupied" | "active" | "reserved";
-
-interface TableItem {
-  id: number;
-  number: number;
-  status: TableStatus;
-  occupants?: number;
-  timeElapsed?: string;
-  orderItems?: number;
-  description?: string; // Added description field for displaying additional info
-}
-
-interface OrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-}
-
-const getTables = (): TableItem[] => {
-  // Generate sample data for tables
-  return Array.from({ length: 42 }, (_, i) => {
-    const statuses: TableStatus[] = ["free", "occupied", "active", "reserved"];
-    const status = statuses[Math.floor(Math.random() * 4)] as TableStatus;
-    
-    // Add some descriptions for active tables
-    let description = "";
-    if (status === "active") {
-      const descriptions = [
-        "marcos gatos",
-        "eduardo palmeiras",
-        "ana maria",
-        "couple",
-        "família",
-        "daniela",
-        "marcos",
-        "guilhermes",
-        "lais",
-        "goiaba"
-      ];
-      description = descriptions[Math.floor(Math.random() * descriptions.length)];
-    }
-    
-    return {
-      id: i + 1,
-      number: i + 1,
-      status,
-      occupants: status !== "free" ? Math.floor(Math.random() * 6) + 1 : undefined,
-      timeElapsed: status !== "free" ? `${Math.floor(Math.random() * 120) + 10}m` : undefined,
-      orderItems: status !== "free" ? Math.floor(Math.random() * 10) + 1 : undefined,
-      description: status === "active" ? description : undefined
-    };
-  });
-};
+import { useAuth } from "@/contexts/AuthContext";
+import { TableItem, TableStatus, createTable, getTablesByRestaurant, updateTable } from "@/utils/restaurant";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
 const statusColors: Record<TableStatus, string> = {
   free: "bg-gray-400",
@@ -83,15 +37,99 @@ const statusLabels: Record<TableStatus, string> = {
 };
 
 const TablesPage = () => {
-  const [tables, setTables] = useState<TableItem[]>(getTables());
+  const { currentRestaurant } = useAuth();
+  const { toast } = useToast();
+  const [tables, setTables] = useState<TableItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<TableStatus | "all">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTable, setSelectedTable] = useState<TableItem | null>(null);
   const [isOrderDrawerOpen, setIsOrderDrawerOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  
+  // Form states for new table
+  const [newTableNumber, setNewTableNumber] = useState("");
+  const [newTableStatus, setNewTableStatus] = useState<TableStatus>("free");
+  const [newTableOccupants, setNewTableOccupants] = useState("");
+  const [newTableDescription, setNewTableDescription] = useState("");
+
+  // Fetch tables when restaurant changes
+  useEffect(() => {
+    if (currentRestaurant?.id) {
+      fetchTables();
+    } else {
+      setTables([]);
+      setLoading(false);
+    }
+  }, [currentRestaurant?.id]);
+
+  const fetchTables = async () => {
+    if (!currentRestaurant?.id) return;
+    
+    setLoading(true);
+    try {
+      const data = await getTablesByRestaurant(currentRestaurant.id);
+      setTables(data);
+    } catch (error) {
+      console.error("Error fetching tables:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível buscar as mesas. Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTable = async () => {
+    if (!currentRestaurant?.id) {
+      toast({
+        title: "Erro",
+        description: "Selecione um restaurante primeiro.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newTableNumber || isNaN(parseInt(newTableNumber))) {
+      toast({
+        title: "Erro",
+        description: "Número da mesa inválido.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const tableData = {
+        number: parseInt(newTableNumber),
+        status: newTableStatus,
+        restaurant_id: currentRestaurant.id,
+        occupants: newTableOccupants ? parseInt(newTableOccupants) : null,
+        description: newTableDescription || null
+      };
+
+      await createTable(tableData);
+      fetchTables();
+      setIsCreateDialogOpen(false);
+      resetNewTableForm();
+    } catch (error) {
+      console.error("Error creating table:", error);
+    }
+  };
+
+  const resetNewTableForm = () => {
+    setNewTableNumber("");
+    setNewTableStatus("free");
+    setNewTableOccupants("");
+    setNewTableDescription("");
+  };
 
   const filteredTables = tables.filter(table => 
     (selectedStatus === "all" || table.status === selectedStatus) &&
-    (searchQuery === "" || table.number.toString().includes(searchQuery) || 
+    (searchQuery === "" || 
+     table.number.toString().includes(searchQuery) || 
      (table.description && table.description.toLowerCase().includes(searchQuery.toLowerCase())))
   );
 
@@ -105,25 +143,24 @@ const TablesPage = () => {
     setIsOrderDrawerOpen(true);
   };
 
-  const handleNewTable = () => {
-    // Create a new table with default values
-    const newTable: TableItem = {
-      id: tables.length + 1,
-      number: tables.length + 1,
-      status: "free"
-    };
-    setSelectedTable(newTable);
-    setIsOrderDrawerOpen(true);
-  };
-
   const handleCloseDrawer = () => {
     setIsOrderDrawerOpen(false);
     setSelectedTable(null);
+    fetchTables(); // Refresh tables when drawer closes
   };
 
   // Group tables by status for better visualization
   const activeTablesCount = statusCounts.active || 0;
   const freeTablesCount = statusCounts.free || 0;
+  
+  if (!currentRestaurant) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
+        <h2 className="text-2xl font-semibold text-gray-600">Selecione um restaurante</h2>
+        <p className="text-gray-500">Você precisa selecionar um restaurante para visualizar as mesas.</p>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
@@ -131,11 +168,22 @@ const TablesPage = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Mesas</h1>
           <p className="text-muted-foreground">
-            Gerenciamento de mesas do restaurante.
+            Gerenciamento de mesas do restaurante {currentRestaurant?.name}.
           </p>
         </div>
         <div className="mt-4 md:mt-0 flex gap-2">
-          <Button className="bg-pos-primary hover:bg-pos-primary/90" onClick={handleNewTable}>
+          <Button 
+            variant="outline" 
+            onClick={fetchTables}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            <span className="ml-2 hidden md:inline">Atualizar</span>
+          </Button>
+          <Button 
+            className="bg-pos-primary hover:bg-pos-primary/90" 
+            onClick={() => setIsCreateDialogOpen(true)}
+          >
             <Plus className="h-4 w-4 mr-2" /> Nova Mesa
           </Button>
         </div>
@@ -215,62 +263,157 @@ const TablesPage = () => {
         </Button>
       </div>
 
-      {/* Active tables section similar to the image */}
-      {activeTablesCount > 0 && (
-        <div className="mt-6">
-          <h2 className="text-xl font-semibold mb-3">Pedidos em Andamento ({activeTablesCount} de {tables.length})</h2>
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
-            {tables
-              .filter(table => table.status === "active")
-              .map((table) => (
-                <div 
-                  key={table.id} 
-                  className="bg-green-600 text-white rounded-md p-2 aspect-square flex flex-col items-center justify-center cursor-pointer hover:bg-green-700 transition-colors"
-                  onClick={() => handleTableClick(table)}
-                >
-                  <div className="text-xl font-bold">{table.number.toString().padStart(2, '0')}</div>
-                  <div className="text-xs">{table.description}</div>
-                </div>
-              ))}
-          </div>
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-10 w-10 animate-spin text-gray-400" />
         </div>
+      ) : (
+        <>
+          {/* Active tables section similar to the image */}
+          {activeTablesCount > 0 && (
+            <div className="mt-6">
+              <h2 className="text-xl font-semibold mb-3">Pedidos em Andamento ({activeTablesCount} de {tables.length})</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+                {tables
+                  .filter(table => table.status === "active")
+                  .map((table) => (
+                    <div 
+                      key={table.id} 
+                      className="bg-green-600 text-white rounded-md p-2 aspect-square flex flex-col items-center justify-center cursor-pointer hover:bg-green-700 transition-colors"
+                      onClick={() => handleTableClick(table)}
+                    >
+                      <div className="text-xl font-bold">{table.number.toString().padStart(2, '0')}</div>
+                      <div className="text-xs truncate max-w-full">{table.description}</div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Free tables section */}
+          {freeTablesCount > 0 && (
+            <div className="mt-4">
+              <h2 className="text-xl font-semibold mb-3">Mesas Livres</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+                {tables
+                  .filter(table => table.status === "free")
+                  .map((table) => (
+                    <div 
+                      key={table.id} 
+                      className="bg-gray-400 text-white rounded-md p-2 aspect-square flex items-center justify-center cursor-pointer hover:bg-gray-500 transition-colors"
+                      onClick={() => handleTableClick(table)}
+                    >
+                      <div className="text-xl font-bold">{table.number.toString().padStart(2, '0')}</div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other tables - grid view of all remaining tables */}
+          {tables.some(table => table.status !== "free" && table.status !== "active") && (
+            <div className="mt-4">
+              <h2 className="text-xl font-semibold mb-3">Outras Mesas</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
+                {tables
+                  .filter(table => table.status !== "free" && table.status !== "active")
+                  .map((table) => (
+                    <div 
+                      key={table.id} 
+                      className={`${statusColors[table.status]} text-white rounded-md p-2 aspect-square flex items-center justify-center cursor-pointer hover:opacity-90 transition-colors`}
+                      onClick={() => handleTableClick(table)}
+                    >
+                      <div className="text-xl font-bold">{table.number.toString().padStart(2, '0')}</div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* No tables message */}
+          {tables.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
+              <div className="text-gray-400 text-lg">Nenhuma mesa cadastrada</div>
+              <Button onClick={() => setIsCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Adicionar Mesa
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Free tables section */}
-      <div className="mt-4">
-        <h2 className="text-xl font-semibold mb-3">Mesas Livres</h2>
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
-          {tables
-            .filter(table => table.status === "free")
-            .map((table) => (
-              <div 
-                key={table.id} 
-                className="bg-gray-400 text-white rounded-md p-2 aspect-square flex items-center justify-center cursor-pointer hover:bg-gray-500 transition-colors"
-                onClick={() => handleTableClick(table)}
+      {/* Create Table Dialog */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar Nova Mesa</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="number" className="text-right">
+                Número
+              </Label>
+              <Input
+                id="number"
+                type="number"
+                value={newTableNumber}
+                onChange={(e) => setNewTableNumber(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="status" className="text-right">
+                Status
+              </Label>
+              <Select
+                value={newTableStatus}
+                onValueChange={(value) => setNewTableStatus(value as TableStatus)}
               >
-                <div className="text-xl font-bold">{table.number.toString().padStart(2, '0')}</div>
-              </div>
-            ))}
-        </div>
-      </div>
-
-      {/* Other tables - grid view of all remaining tables */}
-      <div className="mt-4">
-        <h2 className="text-xl font-semibold mb-3">Outras Mesas</h2>
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
-          {tables
-            .filter(table => table.status !== "free" && table.status !== "active")
-            .map((table) => (
-              <div 
-                key={table.id} 
-                className={`${statusColors[table.status]} text-white rounded-md p-2 aspect-square flex items-center justify-center cursor-pointer hover:opacity-90 transition-colors`}
-                onClick={() => handleTableClick(table)}
-              >
-                <div className="text-xl font-bold">{table.number.toString().padStart(2, '0')}</div>
-              </div>
-            ))}
-        </div>
-      </div>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Selecione o status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="free">Livre</SelectItem>
+                  <SelectItem value="occupied">Ocupada</SelectItem>
+                  <SelectItem value="active">Em Atendimento</SelectItem>
+                  <SelectItem value="reserved">Reservada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="occupants" className="text-right">
+                Ocupantes
+              </Label>
+              <Input
+                id="occupants"
+                type="number"
+                value={newTableOccupants}
+                onChange={(e) => setNewTableOccupants(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="description" className="text-right">
+                Descrição
+              </Label>
+              <Input
+                id="description"
+                value={newTableDescription}
+                onChange={(e) => setNewTableDescription(e.target.value)}
+                className="col-span-3"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateTable}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Table Order Drawer */}
       <TableOrderDrawer 
