@@ -1,10 +1,9 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, Bell, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 interface NavbarProps {
   onMenuToggle: () => void;
@@ -21,7 +20,6 @@ const Navbar = ({ onMenuToggle }: NavbarProps) => {
     }
   };
   
-  // Função para obter as iniciais do nome do usuário
   const getUserInitials = () => {
     if (!user) return "?";
     
