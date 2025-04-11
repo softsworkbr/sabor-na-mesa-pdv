@@ -47,6 +47,9 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
 
     // Add 30 default tables to the restaurant
     await createDefaultTables(restaurant.id);
+    
+    // Add default product categories to the restaurant
+    await createDefaultCategories(restaurant.id);
 
     toast.success('Restaurante criado com sucesso!');
     return restaurant;
@@ -80,6 +83,41 @@ const createDefaultTables = async (restaurantId: string) => {
     toast.error("As mesas foram criadas parcialmente ou não foram criadas.");
     // We don't throw here to avoid rolling back the restaurant creation
     // The user can add tables manually if this fails
+  }
+};
+
+// Function to create default product categories for a new restaurant
+const createDefaultCategories = async (restaurantId: string) => {
+  try {
+    const defaultCategories = [
+      { name: "Entradas", description: "Aperitivos e entradas", sort_order: 0, has_extras: false },
+      { name: "Pratos Principais", description: "Pratos principais do cardápio", sort_order: 1, has_extras: true },
+      { name: "Sobremesas", description: "Sobremesas e doces", sort_order: 2, has_extras: false },
+      { name: "Bebidas", description: "Refrigerantes, sucos e bebidas não alcoólicas", sort_order: 3, has_extras: false },
+      { name: "Bebidas Alcoólicas", description: "Cervejas, vinhos e destilados", sort_order: 4, has_extras: false },
+      { name: "Porções", description: "Porções para compartilhar", sort_order: 5, has_extras: true },
+      { name: "Lanches", description: "Lanches e sanduíches", sort_order: 6, has_extras: true }
+    ];
+
+    const categories = defaultCategories.map(category => ({
+      ...category,
+      restaurant_id: restaurantId,
+      active: true, // All categories are enabled by default
+    }));
+
+    const { error } = await supabase
+      .from('product_categories')
+      .insert(categories);
+
+    if (error) {
+      throw error;
+    }
+    
+    toast.success("Categorias padrão criadas com sucesso!");
+  } catch (error: any) {
+    console.error("Error creating default categories:", error);
+    toast.error("As categorias foram criadas parcialmente ou não foram criadas.");
+    // We don't throw here to avoid rolling back the restaurant creation
   }
 };
 
