@@ -21,4 +21,5 @@ export interface Product {
   restaurant_id: string;
   active?: boolean;
   product_categories?: ProductCategory;
+  category?: ProductCategory; // Added for easier category access
 }
