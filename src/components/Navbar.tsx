@@ -1,16 +1,18 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, Bell, LogOut } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import RestaurantSwitcher from "./RestaurantSwitcher";
 
 interface NavbarProps {
   onMenuToggle: () => void;
 }
 
 const Navbar = ({ onMenuToggle }: NavbarProps) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, currentRestaurant } = useAuth();
   
   const handleSignOut = async () => {
     try {
@@ -40,10 +42,17 @@ const Navbar = ({ onMenuToggle }: NavbarProps) => {
         <Button variant="ghost" size="icon" onClick={onMenuToggle}>
           <Menu className="h-6 w-6" />
         </Button>
-        <h1 className="text-xl font-bold text-pos-primary">Sabor na Mesa</h1>
+        <h1 className="text-xl font-bold text-pos-primary hidden md:inline-block">Sabor na Mesa</h1>
+        {currentRestaurant && (
+          <span className="text-sm text-muted-foreground hidden md:inline-block">
+            - {currentRestaurant.name}
+          </span>
+        )}
       </div>
       
       <div className="flex items-center space-x-2">
+        {user && <RestaurantSwitcher />}
+        
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
           <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>

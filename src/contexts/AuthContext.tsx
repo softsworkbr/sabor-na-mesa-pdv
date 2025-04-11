@@ -4,13 +4,22 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
 
+interface Restaurant {
+  id: string;
+  name: string;
+  role: 'owner' | 'manager' | 'staff';
+}
+
 interface AuthContextProps {
   session: Session | null;
   user: User | null;
   loading: boolean;
+  currentRestaurant: Restaurant | null;
+  restaurants: Restaurant[];
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, userData: { username?: string, full_name?: string }) => Promise<void>;
   signOut: () => Promise<void>;
+  setCurrentRestaurant: (restaurant: Restaurant) => void;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -19,6 +28,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [currentRestaurant, setCurrentRestaurant] = useState<Restaurant | null>(null);
+
+  // Mock data for restaurants - in a real application, this would come from Supabase
+  useEffect(() => {
+    if (user) {
+      const mockRestaurants: Restaurant[] = [
+        { id: '1', name: 'Sabor na Mesa - Centro', role: 'owner' },
+        { id: '2', name: 'Sabor na Mesa - Barra', role: 'manager' },
+        { id: '3', name: 'Sabor na Mesa - Ipanema', role: 'staff' },
+      ];
+      setRestaurants(mockRestaurants);
+      
+      // Set default restaurant if none is selected
+      if (!currentRestaurant) {
+        setCurrentRestaurant(mockRestaurants[0]);
+      }
+
+      // In a real application, you would fetch the user's restaurants from Supabase
+      // async function fetchUserRestaurants() {
+      //   const { data, error } = await supabase
+      //     .from('restaurant_users')
+      //     .select('*, restaurants(*)')
+      //     .eq('user_id', user.id);
+      //
+      //   if (error) {
+      //     toast.error('Erro ao carregar restaurantes');
+      //     return;
+      //   }
+      //
+      //   if (data && data.length > 0) {
+      //     setRestaurants(data.map(item => ({
+      //       id: item.restaurants.id,
+      //       name: item.restaurants.name,
+      //       role: item.role
+      //     })));
+      //     setCurrentRestaurant(data[0]);
+      //   }
+      // }
+      //
+      // fetchUserRestaurants();
+    }
+  }, [user]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
@@ -82,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      setCurrentRestaurant(null);
       toast.success("Logout realizado com sucesso!");
     } catch (error: any) {
       toast.error(`Erro ao fazer logout: ${error.message}`);
@@ -90,7 +143,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      loading, 
+      signIn, 
+      signUp, 
+      signOut, 
+      restaurants,
+      currentRestaurant,
+      setCurrentRestaurant
+    }}>
       {children}
     </AuthContext.Provider>
   );

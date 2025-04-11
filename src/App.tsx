@@ -17,7 +17,7 @@ const queryClient = new QueryClient();
 
 // Componente de proteção de rotas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, currentRestaurant } = useAuth();
 
   // Mostrar loader enquanto verifica autenticação
   if (loading) {
@@ -28,6 +28,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
+
+  // Se não houver restaurante selecionado e houver restaurantes disponíveis
+  // Isso será tratado pelo AuthContext automaticamente agora, então não precisamos verificar aqui
 
   return <>{children}</>;
 };
