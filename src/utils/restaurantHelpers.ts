@@ -133,8 +133,8 @@ export const addUserToRestaurant = async (
       .insert({
         restaurant_id: restaurantId,
         user_id: userData.id,
-        role: role
-      } as any);
+        role
+      });
 
     if (error) {
       // Check for duplicate key error
@@ -186,7 +186,7 @@ export const updateRestaurant = async (
   try {
     const { error } = await supabase
       .from('restaurants')
-      .update(data as any)
+      .update(data)
       .eq('id', restaurantId);
 
     if (error) {
