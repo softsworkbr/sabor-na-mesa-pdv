@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -27,7 +28,8 @@ import {
   Minus,
   Trash2,
   MoreHorizontal,
-  FileText
+  FileText,
+  Loader2
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import OrderProduct from "./OrderProduct";
@@ -39,25 +41,25 @@ import {
   TableRow,
   TableCell
 } from "@/components/ui/table";
-
-type TableStatus = "free" | "occupied" | "active" | "reserved";
+import { 
+  TableOrderTable, 
+  updateTable 
+} from "@/utils/restaurant";
+import { 
+  createOrder, 
+  getOrderByTableId,
+  addOrderItem,
+  updateOrderItem,
+  removeOrderItem,
+  calculateOrderTotal
+} from "@/utils/restaurant/orderManagement";
+import { Product } from "@/utils/restaurant/productTypes";
+import { Order, OrderItem } from "@/utils/restaurant/orderTypes";
 
 interface TableOrderDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  table: {
-    id: number;
-    number: number;
-    status: TableStatus;
-  } | null;
-}
-
-interface OrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-  observation?: string;
+  table: TableOrderTable | null;
 }
 
 interface ProductCategory {
@@ -65,14 +67,6 @@ interface ProductCategory {
   name: string;
   color: string;
   textColor?: string;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  code: string;
-  price: number;
-  category: string;
 }
 
 const productCategories: ProductCategory[] = [
@@ -96,21 +90,21 @@ const productCategories: ProductCategory[] = [
 ];
 
 const sampleProducts: Product[] = [
-  { id: "1", code: "1", name: "Heineken zero", price: 9.50, category: "cervejas" },
-  { id: "2", code: "2", name: "Brahma 600ml", price: 9.90, category: "cervejas" },
-  { id: "3", code: "4", name: "Original 600ml", price: 12.50, category: "cervejas" },
-  { id: "4", code: "5", name: "Serramalte 600ml", price: 12.50, category: "cervejas" },
-  { id: "5", code: "9", name: "Budweiser long", price: 9.50, category: "cervejas" },
-  { id: "6", code: "221", name: "cabare", price: 9.90, category: "cervejas" },
-  { id: "7", code: "129", name: "heineken 600", price: 15.00, category: "cervejas" },
-  { id: "8", code: "8", name: "Heineken long", price: 9.50, category: "cervejas" },
-  { id: "9", code: "10", name: "Malzbier", price: 9.50, category: "cervejas" },
-  { id: "10", code: "0", name: "originalzinha", price: 8.00, category: "cervejas" },
-  { id: "11", code: "11", name: "Coca-Cola 600ml", price: 7.50, category: "refrigerantes" },
-  { id: "12", code: "12", name: "Guaraná Antarctica", price: 7.50, category: "refrigerantes" },
-  { id: "13", code: "13", name: "Suco de Laranja", price: 9.00, category: "suco" },
-  { id: "14", code: "14", name: "Caipirinha de Limão", price: 15.00, category: "caipirinha" },
-  { id: "15", code: "15", name: "Salada Caesar", price: 25.00, category: "saladas" },
+  { id: "1", category_id: "cervejas", name: "Heineken zero", price: 9.50, restaurant_id: "" },
+  { id: "2", category_id: "cervejas", name: "Brahma 600ml", price: 9.90, restaurant_id: "" },
+  { id: "3", category_id: "cervejas", name: "Original 600ml", price: 12.50, restaurant_id: "" },
+  { id: "4", category_id: "cervejas", name: "Serramalte 600ml", price: 12.50, restaurant_id: "" },
+  { id: "5", category_id: "cervejas", name: "Budweiser long", price: 9.50, restaurant_id: "" },
+  { id: "6", category_id: "cervejas", name: "cabare", price: 9.90, restaurant_id: "" },
+  { id: "7", category_id: "cervejas", name: "heineken 600", price: 15.00, restaurant_id: "" },
+  { id: "8", category_id: "cervejas", name: "Heineken long", price: 9.50, restaurant_id: "" },
+  { id: "9", category_id: "cervejas", name: "Malzbier", price: 9.50, restaurant_id: "" },
+  { id: "10", category_id: "cervejas", name: "originalzinha", price: 8.00, restaurant_id: "" },
+  { id: "11", category_id: "refrigerantes", name: "Coca-Cola 600ml", price: 7.50, restaurant_id: "" },
+  { id: "12", category_id: "refrigerantes", name: "Guaraná Antarctica", price: 7.50, restaurant_id: "" },
+  { id: "13", category_id: "suco", name: "Suco de Laranja", price: 9.00, restaurant_id: "" },
+  { id: "14", category_id: "caipirinha", name: "Caipirinha de Limão", price: 15.00, restaurant_id: "" },
+  { id: "15", category_id: "saladas", name: "Salada Caesar", price: 25.00, restaurant_id: "" },
 ];
 
 const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => {
@@ -122,10 +116,99 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [observation, setObservation] = useState("");
   const [showObservationModal, setShowObservationModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
+  const [orderId, setOrderId] = useState<string | undefined>(undefined);
 
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
-  const handleAddProduct = (productId: string, withObservation: boolean = false) => {
+  useEffect(() => {
+    if (isOpen && table) {
+      loadTableOrder();
+    } else {
+      resetOrderForm();
+    }
+  }, [isOpen, table]);
+
+  const loadTableOrder = async () => {
+    if (!table) return;
+    
+    setLoading(true);
+    try {
+      // Check if table has an active order
+      const order = await getOrderByTableId(table.id.toString());
+      
+      if (order) {
+        setCurrentOrder(order);
+        setOrderId(order.id);
+        setCustomerName(order.customer_name || "");
+        
+        if (order.items && order.items.length > 0) {
+          setOrderItems(order.items);
+        } else {
+          setOrderItems([]);
+        }
+      } else {
+        // No active order
+        setCurrentOrder(null);
+        setOrderId(undefined);
+        setOrderItems([]);
+        setCustomerName("");
+      }
+    } catch (error) {
+      console.error("Error loading table order:", error);
+      toast.error("Erro ao carregar pedido da mesa");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetOrderForm = () => {
+    setCurrentOrder(null);
+    setOrderId(undefined);
+    setOrderItems([]);
+    setCustomerName("");
+    setCurrentStep("order");
+    setActiveCategory("todas");
+    setSelectedProduct(null);
+    setObservation("");
+  };
+
+  const saveOrder = async () => {
+    if (!table) return;
+    
+    setLoading(true);
+    try {
+      let order: Order;
+      
+      if (!currentOrder || !orderId) {
+        // Create new order
+        order = await createOrder({
+          table_id: table.id.toString(),
+          customer_name: customerName || undefined,
+        });
+        
+        setCurrentOrder(order);
+        setOrderId(order.id);
+
+        // Update table status to active if it's not already
+        if (table.status !== "active") {
+          await updateTable(table.id.toString(), { status: "active" });
+        }
+      }
+      
+      toast.success(currentOrder ? "Pedido atualizado" : "Pedido criado com sucesso");
+      return true;
+    } catch (error) {
+      console.error("Error saving order:", error);
+      toast.error("Erro ao salvar pedido");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddProduct = async (productId: string, withObservation: boolean = false) => {
     const product = sampleProducts.find(p => p.id === productId);
     if (!product) return;
 
@@ -136,75 +219,118 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       return;
     }
 
-    const existingItem = orderItems.find(item => item.id === productId);
+    await addProductToOrder(product);
+  };
 
-    if (existingItem) {
-      setOrderItems(orderItems.map(item =>
-        item.id === productId
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-      toast.success(`Quantidade de "${product.name}" aumentada.`);
-    } else {
-      setOrderItems([...orderItems, {
-        id: product.id,
-        name: product.name,
-        quantity: 1,
-        price: product.price
-      }]);
+  const addProductToOrder = async (product: Product, productObservation?: string) => {
+    // Save order first if not exists
+    if (!orderId) {
+      const success = await saveOrder();
+      if (!success) return;
+    }
+
+    try {
+      // Check if same product with same observation exists in current items
+      const existingItemIndex = orderItems.findIndex(item => 
+        item.product_id === product.id && item.observation === productObservation
+      );
+
+      if (existingItemIndex >= 0) {
+        // Update existing item
+        const existingItem = orderItems[existingItemIndex];
+        if (!existingItem.id) return;
+
+        const updatedItem = await updateOrderItem(existingItem.id, {
+          quantity: (existingItem.quantity || 1) + 1
+        });
+        
+        // Update local state
+        const updatedItems = [...orderItems];
+        updatedItems[existingItemIndex] = updatedItem;
+        setOrderItems(updatedItems);
+      } else {
+        // Add new item
+        const newItem = await addOrderItem({
+          order_id: orderId!,
+          product_id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: 1,
+          observation: productObservation || null
+        });
+        
+        // Update local state
+        setOrderItems([...orderItems, newItem]);
+      }
+
+      // Calculate order totals
+      await calculateOrderTotal(orderId!);
       toast.success(`"${product.name}" adicionado ao pedido.`);
+    } catch (error) {
+      console.error("Error adding product to order:", error);
+      toast.error("Erro ao adicionar produto");
     }
   };
 
-  const handleAddProductWithObservation = () => {
+  const handleAddProductWithObservation = async () => {
     if (!selectedProduct) return;
-
-    const existingItem = orderItems.find(item => item.id === selectedProduct.id && item.observation === observation);
-
-    if (existingItem) {
-      setOrderItems(orderItems.map(item =>
-        item.id === selectedProduct.id && item.observation === observation
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-      toast.success(`Quantidade de "${selectedProduct.name}" aumentada.`);
-    } else {
-      setOrderItems([...orderItems, {
-        id: selectedProduct.id,
-        name: selectedProduct.name,
-        quantity: 1,
-        price: selectedProduct.price,
-        observation: observation.trim() || undefined
-      }]);
-      toast.success(`"${selectedProduct.name}" adicionado ao pedido.`);
-    }
-
+    
+    await addProductToOrder(selectedProduct, observation);
     setShowObservationModal(false);
     setSelectedProduct(null);
     setObservation("");
   };
 
-  const handleRemoveProduct = (productId: string, observation?: string) => {
-    setOrderItems(orderItems.filter(item =>
-      !(item.id === productId && item.observation === observation)
-    ));
+  const handleRemoveProduct = async (itemId: string) => {
+    if (!itemId) return;
+
+    try {
+      await removeOrderItem(itemId);
+      
+      // Update local state
+      setOrderItems(orderItems.filter(item => item.id !== itemId));
+      
+      // Recalculate order totals
+      if (orderId) {
+        await calculateOrderTotal(orderId);
+      }
+      
+      toast.success("Item removido do pedido");
+    } catch (error) {
+      console.error("Error removing product:", error);
+      toast.error("Erro ao remover item");
+    }
   };
 
-  const handleChangeQuantity = (productId: string, newQuantity: number | string, observation?: string) => {
+  const handleChangeQuantity = async (itemId: string, newQuantity: number | string) => {
+    if (!itemId) return;
+
     // Convert string to number if it's a string
     const quantity = typeof newQuantity === 'string' ? parseInt(newQuantity, 10) : newQuantity;
 
     // Check if the parsed value is valid
     if (isNaN(quantity) || quantity <= 0) {
-      handleRemoveProduct(productId, observation);
+      await handleRemoveProduct(itemId);
       return;
     }
 
-    setOrderItems(orderItems.map(item =>
-      (item.id === productId && item.observation === observation)
-        ? { ...item, quantity }
-        : item
-    ));
+    try {
+      // Update item in database
+      const updatedItem = await updateOrderItem(itemId, { quantity });
+      
+      // Update local state
+      setOrderItems(orderItems.map(item => 
+        item.id === itemId ? { ...item, quantity } : item
+      ));
+      
+      // Recalculate order totals
+      if (orderId) {
+        await calculateOrderTotal(orderId);
+      }
+    } catch (error) {
+      console.error("Error updating quantity:", error);
+      toast.error("Erro ao atualizar quantidade");
+    }
   };
 
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -213,10 +339,10 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
 
   const filteredProducts = sampleProducts.filter(
     product =>
-      (activeCategory === "todas" || product.category === activeCategory) &&
+      (activeCategory === "todas" || product.category_id === activeCategory) &&
       (searchQuery === "" ||
         product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.code.includes(searchQuery))
+        product.id.includes(searchQuery))
   );
 
   const ObservationModal = () => {
@@ -289,16 +415,25 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
 
   const Content = () => (
     <>
-      {currentStep === "order" ? (
+      {loading ? (
+        <div className="flex justify-center items-center h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      ) : currentStep === "order" ? (
         <div className="flex flex-col h-full">
           <div className="bg-gray-100 p-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center">
                 <div className="text-5xl font-bold text-green-700">{table?.number.toString().padStart(2, '0')}</div>
                 <div className="ml-4">
-                  <div className="text-lg">Pedido #{table?.id.toString().padStart(5, '0')}</div>
+                  <div className="text-lg">
+                    {orderId ? `Pedido #${orderId.substring(0, 8)}` : "Novo Pedido"}
+                  </div>
                   <div className="text-sm text-gray-500">
-                    Iniciado em {new Date().toLocaleDateString()} às {new Date().toLocaleTimeString().substring(0, 5)}
+                    {currentOrder?.created_at 
+                      ? `Iniciado em ${new Date(currentOrder.created_at).toLocaleDateString()} às ${new Date(currentOrder.created_at).toLocaleTimeString().substring(0, 5)}`
+                      : `${new Date().toLocaleDateString()} às ${new Date().toLocaleTimeString().substring(0, 5)}`
+                    }
                   </div>
                 </div>
               </div>
@@ -329,7 +464,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                 <div className="bg-gray-50 p-4 rounded border">
                   <div className="flex justify-between mb-2">
                     <span>Código Personalizado:</span>
-                    <span className="font-semibold">{Math.floor(10000 + Math.random() * 90000)}</span>
+                    <span className="font-semibold">
+                      {orderId ? orderId.substring(0, 5) : Math.floor(10000 + Math.random() * 90000)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 mt-4">
                     <input type="checkbox" id="blockOrder" />
@@ -364,10 +501,10 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                   ) : (
                     orderItems.map((item, index) => (
                       <OrderProduct
-                        key={`${item.id}-${index}-${item.observation || "no-obs"}`}
+                        key={`${item.id || item.product_id}-${index}-${item.observation || "no-obs"}`}
                         item={item}
-                        onChangeQuantity={(newQuantity) => handleChangeQuantity(item.id, newQuantity, item.observation)}
-                        onRemove={() => handleRemoveProduct(item.id, item.observation)}
+                        onChangeQuantity={(newQuantity) => item.id && handleChangeQuantity(item.id, newQuantity)}
+                        onRemove={() => item.id && handleRemoveProduct(item.id)}
                       />
                     ))
                   )}
@@ -468,11 +605,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                   </TableHeader>
                   <TableBody>
                     {filteredProducts.map((product) => {
-                      const category = productCategories.find(c => c.id === product.category);
+                      const category = productCategories.find(c => c.id === product.category_id);
                       return (
                         <TableRow key={product.id} className="hover:bg-gray-50">
                           <TableCell className="py-1">{category?.name.split(' ')[0]}</TableCell>
-                          <TableCell className="py-1">{product.code}</TableCell>
+                          <TableCell className="py-1">{product.id}</TableCell>
                           <TableCell className="py-1">{product.name}</TableCell>
                           <TableCell className="py-1 text-right font-semibold">{product.price.toFixed(2).replace('.', ',')}</TableCell>
                           <TableCell className="py-1 text-center">

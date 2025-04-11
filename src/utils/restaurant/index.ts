@@ -19,6 +19,23 @@ export type {
   TableOrderTable
 } from './tableTypes';
 
+// Export product types
+export type {
+  Product,
+  ProductCategory
+} from './productTypes';
+
+// Export order types
+export type {
+  Order,
+  OrderItem,
+  OrderStatus,
+  CreateOrderProps,
+  UpdateOrderProps,
+  CreateOrderItemProps,
+  UpdateOrderItemProps
+} from './orderTypes';
+
 // Export restaurant management functions
 export {
   createRestaurant,
@@ -41,3 +58,18 @@ export {
   deleteTable,
   getTableById
 } from './tableManagement';
+
+// Export order management functions
+export {
+  createOrder,
+  updateOrder,
+  getOrderById,
+  getOrderByTableId,
+  getOrders,
+  addOrderItem,
+  updateOrderItem,
+  removeOrderItem,
+  completeOrder,
+  cancelOrder,
+  calculateOrderTotal
+} from './orderManagement';
