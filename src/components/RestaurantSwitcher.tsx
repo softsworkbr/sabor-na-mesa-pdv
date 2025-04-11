@@ -5,6 +5,7 @@ import {
   ChevronsUpDown,
   Store,
   UserCircle,
+  PlusCircle,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -12,14 +13,17 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 const RestaurantSwitcher = () => {
   const { restaurants, currentRestaurant, setCurrentRestaurant } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
 
   if (!restaurants || restaurants.length === 0) {
     return null;
@@ -29,6 +33,12 @@ const RestaurantSwitcher = () => {
     owner: <UserCircle className="mr-2 h-4 w-4" />,
     manager: <Building2 className="mr-2 h-4 w-4" />,
     staff: <Store className="mr-2 h-4 w-4" />,
+  };
+
+  const handleManageRestaurants = () => {
+    setCurrentRestaurant(null);
+    navigate("/");
+    setIsOpen(false);
   };
 
   return (
@@ -78,6 +88,11 @@ const RestaurantSwitcher = () => {
             </div>
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleManageRestaurants} className="p-2">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          <span>Gerenciar Restaurantes</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

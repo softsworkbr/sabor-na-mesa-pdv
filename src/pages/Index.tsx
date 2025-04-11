@@ -1,4 +1,3 @@
-
 import React from "react";
 import { 
   ShoppingBag, 
@@ -9,6 +8,8 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import RestaurantList from "@/components/RestaurantList";
 
 const DashboardStat = ({ title, value, icon, trend }: { 
   title: string; 
@@ -39,6 +40,7 @@ const DashboardStat = ({ title, value, icon, trend }: {
 
 const Index = () => {
   const [currentTime, setCurrentTime] = React.useState(new Date());
+  const { currentRestaurant } = useAuth();
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -49,6 +51,14 @@ const Index = () => {
       clearInterval(timer);
     };
   }, []);
+
+  if (!currentRestaurant) {
+    return (
+      <div className="p-6">
+        <RestaurantList />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -26,15 +26,15 @@ export const getUsersForRestaurant = async (restaurantId: string): Promise<UserW
 
     // Transform the data into a more usable format
     return data.map(item => {
-      // Handle potential null profiles with proper typing
-      const profile = (item.profiles || {}) as Profile;
+      // Ensure profiles is treated as an object with expected properties
+      const profile = item.profiles as Profile || {} as Profile;
       
       return {
         id: profile.id || item.user_id,
-        email: profile.email,
-        username: profile.username,
-        full_name: profile.full_name,
-        avatar_url: profile.avatar_url,
+        email: profile.email || '',
+        username: profile.username || '',
+        full_name: profile.full_name || '',
+        avatar_url: profile.avatar_url || '',
         role: item.role as 'owner' | 'manager' | 'staff'
       };
     });
