@@ -127,11 +127,12 @@ export const addUserToRestaurant = async (
       .from('profiles')
       .select('id')
       .eq('email', email)
-      .single();
+      .maybeSingle();  // Use maybeSingle instead of single to avoid errors when no rows are found
 
-    if (userError) {
-      toast.error('Usuário não encontrado');
-      throw userError;
+    if (userError || !userData) {
+      toast.error('Usuário não encontrado. Verifique o email informado.');
+      if (userError) console.error('Error finding user:', userError);
+      return false;
     }
 
     // Then add the user to the restaurant
