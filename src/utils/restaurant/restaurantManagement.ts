@@ -2,6 +2,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CreateRestaurantProps } from "./types";
+import { createTable } from "./tableManagement";
+import { TableStatus } from "./tableTypes";
 
 export const createRestaurant = async (data: CreateRestaurantProps) => {
   try {
@@ -43,11 +45,41 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
       throw userError;
     }
 
+    // Add 30 default tables to the restaurant
+    await createDefaultTables(restaurant.id);
+
     toast.success('Restaurante criado com sucesso!');
     return restaurant;
   } catch (error: any) {
     toast.error(`Erro ao criar restaurante: ${error.message}`);
     throw error;
+  }
+};
+
+// Function to create 30 default tables for a new restaurant
+const createDefaultTables = async (restaurantId: string) => {
+  try {
+    // Create tables in batches to avoid overwhelming the database
+    const promises = [];
+    
+    for (let i = 1; i <= 30; i++) {
+      promises.push(
+        createTable({
+          number: i,
+          status: "free" as TableStatus,
+          restaurant_id: restaurantId,
+          description: `Mesa ${i}`
+        })
+      );
+    }
+
+    await Promise.all(promises);
+    toast.success("30 mesas padrão foram criadas com sucesso!");
+  } catch (error: any) {
+    console.error("Error creating default tables:", error);
+    toast.error("As mesas foram criadas parcialmente ou não foram criadas.");
+    // We don't throw here to avoid rolling back the restaurant creation
+    // The user can add tables manually if this fails
   }
 };
 
