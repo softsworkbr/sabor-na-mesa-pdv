@@ -134,7 +134,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     
     setLoading(true);
     try {
-      const tableId = typeof table.id === 'string' ? table.id : table.id.toString();
+      const tableId = table.id;
       
       const order = await getOrderByTableId(tableId);
       
@@ -181,7 +181,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       let order: Order;
       
       if (!currentOrder || !orderId) {
-        const tableId = typeof table.id === 'string' ? table.id : table.id.toString();
+        const tableId = table.id;
         
         order = await createOrder({
           table_id: tableId,
