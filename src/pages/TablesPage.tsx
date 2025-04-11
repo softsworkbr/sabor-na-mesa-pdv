@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import TableOrderDrawer from "@/components/TableOrderDrawer";
 import { useAuth } from "@/contexts/AuthContext";
-import { TableItem, TableStatus, createTable, getTablesByRestaurant, updateTable } from "@/utils/restaurant";
+import { TableItem, TableStatus, createTable, getTablesByRestaurant, updateTable, TableOrderTable } from "@/utils/restaurant";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { 
@@ -47,13 +47,11 @@ const TablesPage = () => {
   const [isOrderDrawerOpen, setIsOrderDrawerOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   
-  // Form states for new table
   const [newTableNumber, setNewTableNumber] = useState("");
   const [newTableStatus, setNewTableStatus] = useState<TableStatus>("free");
   const [newTableOccupants, setNewTableOccupants] = useState("");
   const [newTableDescription, setNewTableDescription] = useState("");
 
-  // Fetch tables when restaurant changes
   useEffect(() => {
     if (currentRestaurant?.id) {
       fetchTables();
@@ -146,13 +144,12 @@ const TablesPage = () => {
   const handleCloseDrawer = () => {
     setIsOrderDrawerOpen(false);
     setSelectedTable(null);
-    fetchTables(); // Refresh tables when drawer closes
+    fetchTables();
   };
 
-  // Group tables by status for better visualization
   const activeTablesCount = statusCounts.active || 0;
   const freeTablesCount = statusCounts.free || 0;
-  
+
   if (!currentRestaurant) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
@@ -269,7 +266,6 @@ const TablesPage = () => {
         </div>
       ) : (
         <>
-          {/* Active tables section similar to the image */}
           {activeTablesCount > 0 && (
             <div className="mt-6">
               <h2 className="text-xl font-semibold mb-3">Pedidos em Andamento ({activeTablesCount} de {tables.length})</h2>
@@ -290,7 +286,6 @@ const TablesPage = () => {
             </div>
           )}
 
-          {/* Free tables section */}
           {freeTablesCount > 0 && (
             <div className="mt-4">
               <h2 className="text-xl font-semibold mb-3">Mesas Livres</h2>
@@ -310,7 +305,6 @@ const TablesPage = () => {
             </div>
           )}
 
-          {/* Other tables - grid view of all remaining tables */}
           {tables.some(table => table.status !== "free" && table.status !== "active") && (
             <div className="mt-4">
               <h2 className="text-xl font-semibold mb-3">Outras Mesas</h2>
@@ -330,7 +324,6 @@ const TablesPage = () => {
             </div>
           )}
 
-          {/* No tables message */}
           {tables.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
               <div className="text-gray-400 text-lg">Nenhuma mesa cadastrada</div>
@@ -342,7 +335,6 @@ const TablesPage = () => {
         </>
       )}
 
-      {/* Create Table Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -415,11 +407,14 @@ const TablesPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Table Order Drawer */}
       <TableOrderDrawer 
         isOpen={isOrderDrawerOpen} 
         onClose={handleCloseDrawer} 
-        table={selectedTable} 
+        table={selectedTable ? {
+          id: selectedTable.id,
+          number: selectedTable.number,
+          status: selectedTable.status
+        } as TableOrderTable : null} 
       />
     </div>
   );

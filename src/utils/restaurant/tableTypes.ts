@@ -27,3 +27,10 @@ export interface UpdateTableProps {
   description?: string | null;
   number?: number;
 }
+
+// Table interface for components expecting id as number
+export interface TableOrderTable {
+  id: number | string;
+  number: number;
+  status: TableStatus;
+}

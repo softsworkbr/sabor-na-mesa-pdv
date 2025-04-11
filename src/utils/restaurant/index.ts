@@ -15,7 +15,8 @@ export type {
   TableItem,
   TableStatus,
   CreateTableProps,
-  UpdateTableProps
+  UpdateTableProps,
+  TableOrderTable
 } from './tableTypes';
 
 // Export restaurant management functions
