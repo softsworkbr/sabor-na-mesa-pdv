@@ -22,11 +22,18 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
     }
 
     // Then add the current user as an owner of the restaurant
+    const user = await supabase.auth.getUser();
+    const userId = user.data.user?.id;
+
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
     const { error: userError } = await supabase
       .from('restaurant_users')
       .insert({
         restaurant_id: restaurant.id,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: userId,
         role: 'owner'
       });
 
