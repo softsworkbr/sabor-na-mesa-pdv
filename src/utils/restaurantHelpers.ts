@@ -19,7 +19,7 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
         address: data.address || null,
         phone: data.phone || null,
         logo_url: data.logo_url || null,
-      } as any)
+      })
       .select()
       .single();
 
@@ -34,7 +34,7 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
         restaurant_id: restaurant.id,
         user_id: (await supabase.auth.getUser()).data.user?.id,
         role: 'owner'
-      } as any);
+      });
 
     if (userError) {
       // If there's an error, try to rollback by deleting the restaurant
@@ -109,6 +109,13 @@ export const getUsersForRestaurant = async (restaurantId: string): Promise<UserW
   }
 };
 
+// Define specific type for adding user to avoid deep type instantiation
+interface RestaurantUserInsert {
+  restaurant_id: string;
+  user_id: string;
+  role: 'manager' | 'staff';
+}
+
 export const addUserToRestaurant = async (
   restaurantId: string,
   email: string,
@@ -128,13 +135,15 @@ export const addUserToRestaurant = async (
     }
 
     // Then add the user to the restaurant
+    const insertData: RestaurantUserInsert = {
+      restaurant_id: restaurantId,
+      user_id: userData.id,
+      role
+    };
+    
     const { error } = await supabase
       .from('restaurant_users')
-      .insert({
-        restaurant_id: restaurantId,
-        user_id: userData.id,
-        role
-      });
+      .insert(insertData);
 
     if (error) {
       // Check for duplicate key error
@@ -202,15 +211,22 @@ export const updateRestaurant = async (
   }
 };
 
+// Define type for user role update to avoid complex type instantiation
+interface UserRoleUpdate {
+  role: 'manager' | 'staff';
+}
+
 export const updateUserRole = async (
   restaurantId: string,
   userId: string,
   role: 'manager' | 'staff'
 ): Promise<boolean> => {
   try {
+    const updateData: UserRoleUpdate = { role };
+    
     const { error } = await supabase
       .from('restaurant_users')
-      .update({ role })
+      .update(updateData)
       .eq('restaurant_id', restaurantId)
       .eq('user_id', userId);
 
