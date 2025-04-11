@@ -72,6 +72,6 @@ export const updateRestaurant = async (
     return updatedRestaurant;
   } catch (error) {
     console.error('Error updating restaurant:', error);
-    return false;
+    throw error; // Modificado para propagar o erro para quem chamou a função
   }
 };

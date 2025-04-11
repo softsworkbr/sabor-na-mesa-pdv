@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +26,7 @@ interface Restaurant {
 }
 
 const RestaurantList = () => {
-  const { user } = useAuth();
+  const { user, refreshRestaurants } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [newRestaurantName, setNewRestaurantName] = useState("");
@@ -40,7 +39,6 @@ const RestaurantList = () => {
   const [currentRestaurantId, setCurrentRestaurantId] = useState<string | null>(null);
   const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(true);
 
-  // Buscar restaurantes do usuário
   useEffect(() => {
     const fetchRestaurants = async () => {
       if (!user) return;
@@ -82,7 +80,6 @@ const RestaurantList = () => {
     fetchRestaurants();
   }, [user]);
 
-  // Filtrar restaurantes quando a busca mudar
   useEffect(() => {
     if (searchQuery.trim() === "") {
       setFilteredRestaurants(restaurants);
@@ -122,8 +119,8 @@ const RestaurantList = () => {
       if (restaurant) {
         toast.success("Restaurante criado com sucesso!");
         setIsOpen(false);
-        // Atualizar lista de restaurantes
         setRestaurants(prev => [...prev, restaurant]);
+        await refreshRestaurants();
         resetForm();
       }
     } catch (error) {
@@ -144,32 +141,34 @@ const RestaurantList = () => {
     setIsLoading(true);
     
     try {
-      const success = await updateRestaurant(currentRestaurantId, {
+      const updatedRestaurant = await updateRestaurant(currentRestaurantId, {
         name: newRestaurantName,
         address: newRestaurantAddress,
         phone: newRestaurantPhone
       });
       
-      if (success) {
-        // Atualizar restaurante na lista local
+      if (updatedRestaurant) {
         setRestaurants(prev => 
           prev.map(restaurant => 
             restaurant.id === currentRestaurantId 
               ? { 
                   ...restaurant, 
-                  name: newRestaurantName,
-                  address: newRestaurantAddress,
-                  phone: newRestaurantPhone
+                  name: updatedRestaurant.name,
+                  address: updatedRestaurant.address,
+                  phone: updatedRestaurant.phone
                 } 
               : restaurant
           )
         );
+        
+        await refreshRestaurants();
         
         setIsOpen(false);
         resetForm();
       }
     } catch (error) {
       console.error("Erro ao atualizar restaurante:", error);
+      toast.error("Erro ao atualizar restaurante");
     } finally {
       setIsLoading(false);
     }
@@ -201,7 +200,6 @@ const RestaurantList = () => {
         </Button>
       </div>
 
-      {/* Barra de pesquisa */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
@@ -212,7 +210,6 @@ const RestaurantList = () => {
         />
       </div>
 
-      {/* Lista de restaurantes */}
       {isLoadingRestaurants ? (
         <div className="flex justify-center items-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -263,7 +260,6 @@ const RestaurantList = () => {
         </Card>
       )}
 
-      {/* Dialog para criar/editar restaurante */}
       <Dialog open={isOpen} onOpenChange={(open) => {
         if (!open) resetForm();
         setIsOpen(open);
