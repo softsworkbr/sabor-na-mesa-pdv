@@ -2,14 +2,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Minus, Plus, Trash2, MoreVertical, Printer } from "lucide-react";
-
-interface OrderItem {
-  id: string;
-  name: string;
-  quantity: number;
-  price: number;
-  observation?: string;
-}
+import { OrderItem } from "@/utils/restaurant";
 
 interface OrderProductProps {
   item: OrderItem;
