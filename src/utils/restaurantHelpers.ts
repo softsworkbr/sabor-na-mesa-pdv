@@ -81,14 +81,19 @@ export const getUsersForRestaurant = async (restaurantId: string): Promise<UserW
     }
 
     // Transform the data into a more usable format
-    return data.map(item => ({
-      id: item.profiles?.id || item.user_id,
-      email: item.profiles?.email,
-      username: item.profiles?.username,
-      full_name: item.profiles?.full_name,
-      avatar_url: item.profiles?.avatar_url,
-      role: item.role
-    }));
+    return data.map(item => {
+      // Handle potential null profiles
+      const profile = item.profiles || {};
+      
+      return {
+        id: profile.id || item.user_id,
+        email: profile.email,
+        username: profile.username,
+        full_name: profile.full_name,
+        avatar_url: profile.avatar_url,
+        role: item.role
+      };
+    });
   } catch (error: any) {
     console.error('Error fetching users for restaurant:', error);
     return [];

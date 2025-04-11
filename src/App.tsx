@@ -13,10 +13,9 @@ import UsersPage from "./pages/UsersPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import React from "react"; // Adding explicit React import
 
-const queryClient = new QueryClient();
-
-// Componente de proteção de rotas
+// ProtectedRoute component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, currentRestaurant } = useAuth();
 
@@ -30,12 +29,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  // Se não houver restaurante selecionado e houver restaurantes disponíveis
-  // Isso será tratado pelo AuthContext automaticamente agora, então não precisamos verificar aqui
-
   return <>{children}</>;
 };
 
+// AppRoutes component
 const AppRoutes = () => {
   return (
     <Routes>
@@ -58,18 +55,24 @@ const AppRoutes = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner position="top-right" />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </QueryClientProvider>
-);
+// Main App component
+const App = () => {
+  // Create QueryClient instance inside the component
+  const [queryClient] = React.useState(() => new QueryClient());
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner position="top-right" />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
