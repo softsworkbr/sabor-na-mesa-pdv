@@ -19,7 +19,7 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
         address: data.address || null,
         phone: data.phone || null,
         logo_url: data.logo_url || null,
-      })
+      } as any)
       .select()
       .single();
 
@@ -34,7 +34,7 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
         restaurant_id: restaurant.id,
         user_id: (await supabase.auth.getUser()).data.user?.id,
         role: 'owner'
-      });
+      } as any);
 
     if (userError) {
       // If there's an error, try to rollback by deleting the restaurant
@@ -75,7 +75,7 @@ export const addUserToRestaurant = async (
         restaurant_id: restaurantId,
         user_id: userData.id,
         role: role
-      });
+      } as any);
 
     if (error) {
       // Check for duplicate key error
@@ -127,7 +127,7 @@ export const updateRestaurant = async (
   try {
     const { error } = await supabase
       .from('restaurants')
-      .update(data)
+      .update(data as any)
       .eq('id', restaurantId);
 
     if (error) {

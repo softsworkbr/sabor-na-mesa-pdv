@@ -1,9 +1,7 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
-import { Database } from '@/integrations/supabase/types';
 
 interface Restaurant {
   id: string;
@@ -44,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Query to get all restaurants that the user has access to along with their role
         const { data: restaurantUsers, error } = await supabase
           .from('restaurant_users')
-          .select('restaurant_id, role')
+          .select('*')
           .eq('user_id', user.id);
 
         if (error) {

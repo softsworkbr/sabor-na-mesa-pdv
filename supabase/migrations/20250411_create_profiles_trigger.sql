@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   username TEXT,
   full_name TEXT,
   avatar_url TEXT,
+  email TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
@@ -28,12 +29,13 @@ CREATE POLICY "Users can update own profile"
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, full_name, avatar_url)
+  INSERT INTO public.profiles (id, username, full_name, avatar_url, email)
   VALUES (
     new.id, 
     new.raw_user_meta_data->>'username', 
     new.raw_user_meta_data->>'full_name', 
-    new.raw_user_meta_data->>'avatar_url'
+    new.raw_user_meta_data->>'avatar_url',
+    new.email
   );
   RETURN new;
 END;
