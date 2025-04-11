@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,7 +18,8 @@ import {
   Utensils,
   X,
   Save,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -44,6 +46,16 @@ import * as z from "zod";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface MenuItem {
   id: string;
@@ -137,6 +149,8 @@ const MenuPage = () => {
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [showCategoriesTab, setShowCategoriesTab] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   
   const form = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -256,17 +270,20 @@ const MenuPage = () => {
     }
   };
 
-  const handleDeleteCategory = async (categoryId: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta categoria?")) {
-      return;
-    }
+  const confirmDeleteCategory = (categoryId: string) => {
+    setCategoryToDelete(categoryId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!categoryToDelete) return;
     
     setIsLoading(true);
     try {
       const { error } = await supabase
         .from('product_categories')
         .delete()
-        .eq('id', categoryId);
+        .eq('id', categoryToDelete);
       
       if (error) throw error;
       
@@ -277,6 +294,8 @@ const MenuPage = () => {
       console.error('Error deleting product category:', error);
     } finally {
       setIsLoading(false);
+      setDeleteDialogOpen(false);
+      setCategoryToDelete(null);
     }
   };
 
@@ -369,7 +388,7 @@ const MenuPage = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteCategory(category.id)}
+                            onClick={() => confirmDeleteCategory(category.id)}
                             className="text-red-600"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -427,6 +446,7 @@ const MenuPage = () => {
         </>
       )}
 
+      {/* Category Edit/Create Dialog */}
       <Dialog open={showCategoryDialog} onOpenChange={closeCategoryDialog}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -482,6 +502,7 @@ const MenuPage = () => {
                           <Switch
                             checked={field.value}
                             onCheckedChange={field.onChange}
+                            className="bg-gray-300 data-[state=checked]:bg-pos-primary"
                           />
                         </FormControl>
                       </FormItem>
@@ -505,6 +526,7 @@ const MenuPage = () => {
                       <Switch
                         checked={field.value}
                         onCheckedChange={field.onChange}
+                        className="bg-gray-300 data-[state=checked]:bg-green-500"
                       />
                     </FormControl>
                   </FormItem>
@@ -549,6 +571,36 @@ const MenuPage = () => {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+              Confirmar exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta categoria? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCategoryToDelete(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteCategory}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                'Excluir'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
