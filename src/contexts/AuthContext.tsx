@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -61,9 +62,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (error) throw error;
-      toast.success("Cadastro realizado com sucesso! Verifique seu email para confirmação.");
+      
+      // Check if the user was created and a confirmation email was sent
+      if (error?.status !== 429) {
+        toast.success("Cadastro realizado com sucesso! Verifique seu email para confirmação.");
+      }
     } catch (error: any) {
-      toast.error(`Erro ao criar conta: ${error.message}`);
+      // Special handling for rate limit errors
+      if (error.code === 'over_email_send_rate_limit') {
+        toast.error("Por favor, aguarde alguns segundos antes de tentar novamente.");
+      } else {
+        toast.error(`Erro ao criar conta: ${error.message}`);
+      }
       throw error;
     }
   };

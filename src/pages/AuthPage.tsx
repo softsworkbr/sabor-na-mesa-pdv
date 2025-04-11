@@ -34,6 +34,8 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 const AuthPage: React.FC = () => {
   const { signIn, signUp, user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [cooldownActive, setCooldownActive] = useState(false);
+  const [cooldownTime, setCooldownTime] = useState(0);
   const navigate = useNavigate();
 
   // Redirecionar se já estiver autenticado
@@ -42,6 +44,27 @@ const AuthPage: React.FC = () => {
       navigate('/');
     }
   }, [user, navigate]);
+
+  // Efeito para o cooldown
+  useEffect(() => {
+    let timer: number | null = null;
+    
+    if (cooldownActive && cooldownTime > 0) {
+      timer = window.setInterval(() => {
+        setCooldownTime(prev => {
+          if (prev <= 1) {
+            setCooldownActive(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [cooldownActive, cooldownTime]);
 
   // Formulário de login
   const loginForm = useForm<LoginFormValues>({
@@ -79,14 +102,25 @@ const AuthPage: React.FC = () => {
 
   // Função de registro
   const onRegisterSubmit = async (data: RegisterFormValues) => {
+    if (cooldownActive) return;
+    
     setIsLoading(true);
     try {
       await signUp(data.email, data.password, {
         username: data.username,
         full_name: data.fullName
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      // Verificar se é um erro de rate limiting
+      if (error.code === 'over_email_send_rate_limit') {
+        // Extrair o número de segundos do erro, ou usar um valor padrão
+        const waitTimeMatch = error.message.match(/after (\d+) seconds/);
+        const waitTime = waitTimeMatch ? parseInt(waitTimeMatch[1]) : 30;
+        
+        setCooldownTime(waitTime);
+        setCooldownActive(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -224,9 +258,19 @@ const AuthPage: React.FC = () => {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                      {isLoading ? 'Registrando...' : 'Registrar'}
+                    <Button 
+                      type="submit" 
+                      className="w-full" 
+                      disabled={isLoading || cooldownActive}
+                    >
+                      {isLoading ? 'Registrando...' : 
+                       cooldownActive ? `Aguarde ${cooldownTime}s...` : 'Registrar'}
                     </Button>
+                    {cooldownActive && (
+                      <p className="text-amber-600 text-sm text-center mt-2">
+                        Por razões de segurança, aguarde {cooldownTime} segundos antes de tentar novamente.
+                      </p>
+                    )}
                   </form>
                 </Form>
               </CardContent>
