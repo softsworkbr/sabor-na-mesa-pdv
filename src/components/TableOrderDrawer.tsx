@@ -266,7 +266,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               {/* Usando textarea nativo em vez do componente Textarea */}
               <textarea
                 id="observation"
-                placeholder="Ex: Sem cebola com creme, bem passado, etc..."
+                placeholder="Ex: Sem cebola com creme, com cebolinha papai, bem passado, etc..."
                 value={localObservation}
                 onChange={(e) => setLocalObservation(e.target.value)}
                 className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
