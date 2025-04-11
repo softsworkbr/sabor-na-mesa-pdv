@@ -54,12 +54,14 @@ export const createRestaurant = async (data: CreateRestaurantProps) => {
 export const updateRestaurant = async (
   restaurantId: string,
   data: Partial<CreateRestaurantProps>
-): Promise<boolean> => {
+) => {
   try {
-    const { error } = await supabase
+    const { data: updatedRestaurant, error } = await supabase
       .from('restaurants')
       .update(data)
-      .eq('id', restaurantId);
+      .eq('id', restaurantId)
+      .select()
+      .single();
 
     if (error) {
       toast.error(`Erro ao atualizar restaurante: ${error.message}`);
@@ -67,7 +69,7 @@ export const updateRestaurant = async (
     }
 
     toast.success('Restaurante atualizado com sucesso!');
-    return true;
+    return updatedRestaurant;
   } catch (error) {
     console.error('Error updating restaurant:', error);
     return false;
