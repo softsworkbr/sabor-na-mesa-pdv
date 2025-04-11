@@ -113,7 +113,7 @@ export const addUserToRestaurant = async (
   restaurantId: string,
   email: string,
   role: 'manager' | 'staff'
-) => {
+): Promise<boolean> => {
   try {
     // First, get the user ID from the email
     const { data: userData, error: userError } = await supabase
@@ -157,7 +157,7 @@ export const addUserToRestaurant = async (
 export const removeUserFromRestaurant = async (
   restaurantId: string,
   userId: string
-) => {
+): Promise<boolean> => {
   try {
     // Remove user from the restaurant
     const { error } = await supabase
@@ -182,7 +182,7 @@ export const removeUserFromRestaurant = async (
 export const updateRestaurant = async (
   restaurantId: string,
   data: Partial<CreateRestaurantProps>
-) => {
+): Promise<boolean> => {
   try {
     const { error } = await supabase
       .from('restaurants')
@@ -206,11 +206,11 @@ export const updateUserRole = async (
   restaurantId: string,
   userId: string,
   role: 'manager' | 'staff'
-) => {
+): Promise<boolean> => {
   try {
     const { error } = await supabase
       .from('restaurant_users')
-      .update({ role } as any)
+      .update({ role })
       .eq('restaurant_id', restaurantId)
       .eq('user_id', userId);
 
