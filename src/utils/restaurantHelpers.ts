@@ -76,7 +76,7 @@ export const getUsersForRestaurant = async (restaurantId: string): Promise<UserW
       .select(`
         user_id,
         role,
-        profiles:user_id(id, email, username, full_name, avatar_url)
+        profiles(id, username, full_name, avatar_url)
       `)
       .eq('restaurant_id', restaurantId);
 
@@ -100,7 +100,7 @@ export const getUsersForRestaurant = async (restaurantId: string): Promise<UserW
         username: profile.username,
         full_name: profile.full_name,
         avatar_url: profile.avatar_url,
-        role: item.role
+        role: item.role as 'owner' | 'manager' | 'staff'
       };
     });
   } catch (error: any) {
