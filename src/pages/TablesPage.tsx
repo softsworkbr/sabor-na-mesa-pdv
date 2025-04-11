@@ -411,7 +411,7 @@ const TablesPage = () => {
         isOpen={isOrderDrawerOpen} 
         onClose={handleCloseDrawer} 
         table={selectedTable ? {
-          id: selectedTable.id,
+          id: parseInt(selectedTable.id),
           number: selectedTable.number,
           status: selectedTable.status
         } as TableOrderTable : null} 
