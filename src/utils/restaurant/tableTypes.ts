@@ -1,36 +1,35 @@
 
-// Define types for table management
 export type TableStatus = "free" | "occupied" | "active" | "reserved";
 
 export interface TableItem {
   id: string;
   number: number;
   status: TableStatus;
-  occupants?: number;
   restaurant_id: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
+  occupants?: number | null;
+  description?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CreateTableProps {
   number: number;
-  status: TableStatus;
+  status?: TableStatus;
   restaurant_id: string;
   occupants?: number | null;
   description?: string | null;
 }
 
 export interface UpdateTableProps {
+  number?: number;
   status?: TableStatus;
   occupants?: number | null;
   description?: string | null;
-  number?: number;
 }
 
-// Table interface for components expecting id as number
+// This interface is used specifically for the TableOrderDrawer component
 export interface TableOrderTable {
-  id: number;
+  id: string;  // Changed from number to string to make it compatible with UUID
   number: number;
   status: TableStatus;
 }

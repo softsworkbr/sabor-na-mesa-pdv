@@ -130,12 +130,13 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   }, [isOpen, table]);
 
   const loadTableOrder = async () => {
-    if (!table) return;
+    if (!table || !table.id) return;
     
     setLoading(true);
     try {
-      // Check if table has an active order
-      const order = await getOrderByTableId(table.id.toString());
+      const tableId = typeof table.id === 'string' ? table.id : table.id.toString();
+      
+      const order = await getOrderByTableId(tableId);
       
       if (order) {
         setCurrentOrder(order);
@@ -148,7 +149,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
           setOrderItems([]);
         }
       } else {
-        // No active order
         setCurrentOrder(null);
         setOrderId(undefined);
         setOrderItems([]);
@@ -174,25 +174,25 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   };
 
   const saveOrder = async () => {
-    if (!table) return;
+    if (!table || !table.id) return;
     
     setLoading(true);
     try {
       let order: Order;
       
       if (!currentOrder || !orderId) {
-        // Create new order
+        const tableId = typeof table.id === 'string' ? table.id : table.id.toString();
+        
         order = await createOrder({
-          table_id: table.id.toString(),
+          table_id: tableId,
           customer_name: customerName || undefined,
         });
         
         setCurrentOrder(order);
         setOrderId(order.id);
 
-        // Update table status to active if it's not already
         if (table.status !== "active") {
-          await updateTable(table.id.toString(), { status: "active" });
+          await updateTable(tableId, { status: "active" });
         }
       }
       
@@ -222,20 +222,17 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   };
 
   const addProductToOrder = async (product: Product, productObservation?: string) => {
-    // Save order first if not exists
     if (!orderId) {
       const success = await saveOrder();
       if (!success) return;
     }
 
     try {
-      // Check if same product with same observation exists in current items
       const existingItemIndex = orderItems.findIndex(item => 
         item.product_id === product.id && item.observation === productObservation
       );
 
       if (existingItemIndex >= 0) {
-        // Update existing item
         const existingItem = orderItems[existingItemIndex];
         if (!existingItem.id) return;
 
@@ -243,12 +240,10 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
           quantity: (existingItem.quantity || 1) + 1
         });
         
-        // Update local state
         const updatedItems = [...orderItems];
         updatedItems[existingItemIndex] = updatedItem;
         setOrderItems(updatedItems);
       } else {
-        // Add new item
         const newItem = await addOrderItem({
           order_id: orderId!,
           product_id: product.id,
@@ -258,11 +253,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
           observation: productObservation || null
         });
         
-        // Update local state
         setOrderItems([...orderItems, newItem]);
       }
 
-      // Calculate order totals
       await calculateOrderTotal(orderId!);
       toast.success(`"${product.name}" adicionado ao pedido.`);
     } catch (error) {
@@ -286,10 +279,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     try {
       await removeOrderItem(itemId);
       
-      // Update local state
       setOrderItems(orderItems.filter(item => item.id !== itemId));
       
-      // Recalculate order totals
       if (orderId) {
         await calculateOrderTotal(orderId);
       }
@@ -304,25 +295,20 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const handleChangeQuantity = async (itemId: string, newQuantity: number | string) => {
     if (!itemId) return;
 
-    // Convert string to number if it's a string
     const quantity = typeof newQuantity === 'string' ? parseInt(newQuantity, 10) : newQuantity;
 
-    // Check if the parsed value is valid
     if (isNaN(quantity) || quantity <= 0) {
       await handleRemoveProduct(itemId);
       return;
     }
 
     try {
-      // Update item in database
       const updatedItem = await updateOrderItem(itemId, { quantity });
       
-      // Update local state
       setOrderItems(orderItems.map(item => 
         item.id === itemId ? { ...item, quantity } : item
       ));
       
-      // Recalculate order totals
       if (orderId) {
         await calculateOrderTotal(orderId);
       }
@@ -333,7 +319,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   };
 
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const serviceFee = subtotal * 0.1;  // 10% service fee
+  const serviceFee = subtotal * 0.1;
   const total = subtotal + serviceFee;
 
   const filteredProducts = sampleProducts.filter(
@@ -345,29 +331,23 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   );
 
   const ObservationModal = () => {
-    // Referência local para o valor da observação
     const [localObservation, setLocalObservation] = useState(observation);
 
-    // Atualiza o valor local quando o modal é aberto
     React.useEffect(() => {
       if (showObservationModal) {
         setLocalObservation(observation);
       }
     }, [showObservationModal, observation]);
 
-    // Manipulador para fechar a modal
     const handleCloseModal = () => {
       setShowObservationModal(false);
     };
 
-    // Manipulador para adicionar o produto com observação
     const handleAddWithObservation = () => {
-      // Atualiza o estado global com o valor local antes de adicionar
       setObservation(localObservation);
       handleAddProductWithObservation();
     };
 
-    // Renderização condicional da modal apenas quando estiver aberta
     if (!showObservationModal) return null;
 
     return (
@@ -388,7 +368,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               <label htmlFor="observation" className="text-sm font-medium">
                 Observação para o preparo:
               </label>
-              {/* Usando textarea nativo em vez do componente Textarea */}
               <textarea
                 id="observation"
                 placeholder="Ex: Sem cebola com creme, com cebolinha papai, bem passado, etc..."
@@ -662,7 +641,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         <DialogDescription className="sr-only">
           Gerenciamento de pedidos para a mesa {table ? table.number.toString() : ''}
         </DialogDescription>
-        <Content />
+        {React.createElement(Content)}
       </DialogContent>
     </Dialog>
   );
