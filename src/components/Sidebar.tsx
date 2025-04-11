@@ -11,19 +11,44 @@ import {
   BarChart3, 
   Layers 
 } from "lucide-react";
-
-const menuItems = [
-  { name: "Principal", icon: Home, to: "/" },
-  { name: "Pedidos", icon: ShoppingCart, to: "/orders" },
-  { name: "Mesas", icon: Layers, to: "/tables" },
-  { name: "Cardápio", icon: Utensils, to: "/menu" },
-  { name: "Clientes", icon: Users, to: "/customers" },
-  { name: "Pagamentos", icon: CreditCard, to: "/payments" },
-  { name: "Relatórios", icon: BarChart3, to: "/reports" },
-  { name: "Configurações", icon: Settings, to: "/settings" },
-];
+import { useAuth } from "@/contexts/AuthContext";
 
 const Sidebar = () => {
+  const { currentRestaurant } = useAuth();
+  
+  const menuItems = [
+    { name: "Principal", icon: Home, to: "/" },
+    { name: "Pedidos", icon: ShoppingCart, to: "/orders" },
+    { name: "Mesas", icon: Layers, to: "/tables" },
+    { name: "Cardápio", icon: Utensils, to: "/menu" },
+    { name: "Clientes", icon: Users, to: "/customers" },
+    { name: "Pagamentos", icon: CreditCard, to: "/payments" },
+    { name: "Relatórios", icon: BarChart3, to: "/reports" },
+    { name: "Configurações", icon: Settings, to: "/settings" },
+  ];
+
+  const filterMenuItemsByRole = (role: 'owner' | 'manager' | 'staff') => {
+    // Assume base access for staff
+    const allowedItems = ["Principal", "Pedidos", "Mesas", "Cardápio"];
+    
+    // Add more access based on role
+    if (role === 'manager' || role === 'owner') {
+      allowedItems.push("Clientes", "Pagamentos", "Relatórios");
+    }
+    
+    // Only owners can access settings
+    if (role === 'owner') {
+      allowedItems.push("Configurações");
+    }
+    
+    return menuItems.filter(item => allowedItems.includes(item.name));
+  };
+
+  // Filter menu items based on user's role in the current restaurant
+  const filteredMenuItems = currentRestaurant 
+    ? filterMenuItemsByRole(currentRestaurant.role)
+    : menuItems;
+
   return (
     <aside className="bg-white w-64 flex-shrink-0 border-r border-gray-200 overflow-y-auto">
       <div className="p-4">
@@ -36,7 +61,7 @@ const Sidebar = () => {
 
         <nav className="mt-4">
           <ul className="space-y-1">
-            {menuItems.map((item) => (
+            {filteredMenuItems.map((item) => (
               <li key={item.name}>
                 <NavLink
                   to={item.to}

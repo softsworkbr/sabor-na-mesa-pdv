@@ -1,13 +1,6 @@
 
 import React, { useState } from "react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Building2,
   ChevronsUpDown,
   Store,
@@ -47,7 +40,7 @@ const RestaurantSwitcher = () => {
         >
           <div className="flex items-center gap-2 overflow-hidden">
             <Avatar className="h-5 w-5">
-              <AvatarImage src={null} />
+              <AvatarImage src={currentRestaurant?.logo_url || null} />
               <AvatarFallback className="bg-pos-primary text-white text-xs">
                 {currentRestaurant?.name.charAt(0)}
               </AvatarFallback>
@@ -71,6 +64,7 @@ const RestaurantSwitcher = () => {
             )}
           >
             <Avatar className="h-5 w-5">
+              <AvatarImage src={restaurant.logo_url || null} />
               <AvatarFallback className="bg-pos-primary text-white text-xs">
                 {restaurant.name.charAt(0)}
               </AvatarFallback>

@@ -36,15 +36,87 @@ export type Database = {
         }
         Relationships: []
       }
+      restaurant_users: {
+        Row: {
+          created_at: string
+          id: string
+          restaurant_id: string
+          role: Database["public"]["Enums"]["user_restaurant_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          restaurant_id: string
+          role?: Database["public"]["Enums"]["user_restaurant_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          restaurant_id?: string
+          role?: Database["public"]["Enums"]["user_restaurant_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_users_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      restaurants: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_restaurant_role: {
+        Args: { restaurant_id: string }
+        Returns: string
+      }
+      user_has_restaurant_access: {
+        Args: { restaurant_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_restaurant_role: "owner" | "manager" | "staff"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -159,6 +231,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_restaurant_role: ["owner", "manager", "staff"],
+    },
   },
 } as const

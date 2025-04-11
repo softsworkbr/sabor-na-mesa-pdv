@@ -3,11 +3,15 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from "sonner";
+import { Database } from '@/integrations/supabase/types';
 
 interface Restaurant {
   id: string;
   name: string;
   role: 'owner' | 'manager' | 'staff';
+  address?: string | null;
+  phone?: string | null;
+  logo_url?: string | null;
 }
 
 interface AuthContextProps {
@@ -31,45 +35,82 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [currentRestaurant, setCurrentRestaurant] = useState<Restaurant | null>(null);
 
-  // Mock data for restaurants - in a real application, this would come from Supabase
+  // Fetch user's restaurants from Supabase
   useEffect(() => {
-    if (user) {
-      const mockRestaurants: Restaurant[] = [
-        { id: '1', name: 'Sabor na Mesa - Centro', role: 'owner' },
-        { id: '2', name: 'Sabor na Mesa - Barra', role: 'manager' },
-        { id: '3', name: 'Sabor na Mesa - Ipanema', role: 'staff' },
-      ];
-      setRestaurants(mockRestaurants);
-      
-      // Set default restaurant if none is selected
-      if (!currentRestaurant) {
-        setCurrentRestaurant(mockRestaurants[0]);
-      }
+    async function fetchUserRestaurants() {
+      if (!user) return;
 
-      // In a real application, you would fetch the user's restaurants from Supabase
-      // async function fetchUserRestaurants() {
-      //   const { data, error } = await supabase
-      //     .from('restaurant_users')
-      //     .select('*, restaurants(*)')
-      //     .eq('user_id', user.id);
-      //
-      //   if (error) {
-      //     toast.error('Erro ao carregar restaurantes');
-      //     return;
-      //   }
-      //
-      //   if (data && data.length > 0) {
-      //     setRestaurants(data.map(item => ({
-      //       id: item.restaurants.id,
-      //       name: item.restaurants.name,
-      //       role: item.role
-      //     })));
-      //     setCurrentRestaurant(data[0]);
-      //   }
-      // }
-      //
-      // fetchUserRestaurants();
+      try {
+        // Query to get all restaurants that the user has access to along with their role
+        const { data: restaurantUsers, error } = await supabase
+          .from('restaurant_users')
+          .select('restaurant_id, role')
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error fetching restaurant users:', error);
+          toast.error('Erro ao carregar restaurantes');
+          return;
+        }
+
+        if (restaurantUsers && restaurantUsers.length > 0) {
+          // Get all restaurant IDs
+          const restaurantIds = restaurantUsers.map(ru => ru.restaurant_id);
+
+          // Fetch restaurant details
+          const { data: restaurantData, error: restaurantError } = await supabase
+            .from('restaurants')
+            .select('*')
+            .in('id', restaurantIds);
+
+          if (restaurantError) {
+            console.error('Error fetching restaurants:', restaurantError);
+            toast.error('Erro ao carregar detalhes dos restaurantes');
+            return;
+          }
+
+          // Combine restaurant details with roles
+          const userRestaurants: Restaurant[] = restaurantData.map(restaurant => {
+            const userRestaurant = restaurantUsers.find(
+              ru => ru.restaurant_id === restaurant.id
+            );
+            return {
+              id: restaurant.id,
+              name: restaurant.name,
+              role: userRestaurant?.role as 'owner' | 'manager' | 'staff',
+              address: restaurant.address,
+              phone: restaurant.phone,
+              logo_url: restaurant.logo_url
+            };
+          });
+
+          setRestaurants(userRestaurants);
+          
+          // Set default restaurant if none is selected
+          if (!currentRestaurant && userRestaurants.length > 0) {
+            setCurrentRestaurant(userRestaurants[0]);
+          }
+        } else {
+          // For demo purposes, use the mock data when the user has no restaurants
+          console.log("No restaurants found in database for this user, using sample data");
+          const mockRestaurants: Restaurant[] = [
+            { id: '1', name: 'Sabor na Mesa - Centro', role: 'owner' },
+            { id: '2', name: 'Sabor na Mesa - Barra', role: 'manager' },
+            { id: '3', name: 'Sabor na Mesa - Ipanema', role: 'staff' },
+          ];
+          setRestaurants(mockRestaurants);
+          
+          if (!currentRestaurant) {
+            setCurrentRestaurant(mockRestaurants[0]);
+          }
+        }
+      } catch (err) {
+        console.error('Error in fetchUserRestaurants:', err);
+        toast.error('Erro ao carregar dados dos restaurantes');
+      }
     }
+
+    fetchUserRestaurants();
   }, [user]);
 
   useEffect(() => {
