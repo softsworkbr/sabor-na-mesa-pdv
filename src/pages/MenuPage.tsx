@@ -983,6 +983,10 @@ const MenuItemCard = ({
             </Button>
           </div>
         </div>
+        <Badge variant="outline" className="flex items-center gap-1 text-xs mt-2 w-fit">
+          <Tag className="h-3 w-3" />
+          {item.product_categories?.name || "Categoria desconhecida"}
+        </Badge>
       </CardHeader>
       <CardContent className="p-4 pt-2">
         {item.image_url && (
@@ -1000,10 +1004,6 @@ const MenuItemCard = ({
         <p className="text-sm text-gray-600 line-clamp-2 h-10">{item.description || "Sem descrição"}</p>
         <div className="flex justify-between items-center mt-4">
           <p className="text-lg font-bold">R$ {item.price.toFixed(2)}</p>
-          <Badge variant="outline" className="flex items-center gap-1 text-xs">
-            <Tag className="h-3 w-3" />
-            {item.product_categories?.name || "Categoria desconhecida"}
-          </Badge>
         </div>
       </CardContent>
     </Card>
