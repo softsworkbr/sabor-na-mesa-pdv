@@ -76,7 +76,7 @@ export const getUsersForRestaurant = async (restaurantId: string): Promise<UserW
       .select(`
         user_id,
         role,
-        profiles(id, username, full_name, avatar_url)
+        profiles(id, username, full_name, avatar_url, email)
       `)
       .eq('restaurant_id', restaurantId);
 
@@ -109,8 +109,8 @@ export const getUsersForRestaurant = async (restaurantId: string): Promise<UserW
   }
 };
 
-// Define specific type for adding user to avoid deep type instantiation
-interface RestaurantUserInsert {
+// Define specific type for restaurant user insert
+type RestaurantUserInsert = {
   restaurant_id: string;
   user_id: string;
   role: 'manager' | 'staff';
@@ -211,8 +211,8 @@ export const updateRestaurant = async (
   }
 };
 
-// Define type for user role update to avoid complex type instantiation
-interface UserRoleUpdate {
+// Define type for user role update
+type UserRoleUpdate = {
   role: 'manager' | 'staff';
 }
 
