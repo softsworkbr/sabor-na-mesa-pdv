@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -208,27 +207,12 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         return [];
       }
       
-      // Get all extras associated with this product through the product_to_extras junction table
-      const { data: productExtrasJoin, error: joinError } = await supabase
-        .from('product_to_extras')
-        .select('extra_id')
-        .eq('product_id', productId);
-      
-      if (joinError) throw joinError;
-      
-      if (!productExtrasJoin || productExtrasJoin.length === 0) {
-        return [];
-      }
-      
-      // Get the extra_ids from the join result
-      const extraIds = productExtrasJoin.map(join => join.extra_id);
-      
-      // Fetch the actual extras
+      // Buscar todos os extras disponíveis (ativos) sem filtrar por produto
       const { data: extras, error: extrasError } = await supabase
         .from('product_extras')
         .select('*')
-        .in('id', extraIds)
-        .eq('active', true);
+        .eq('active', true)
+        .order('name');
       
       if (extrasError) throw extrasError;
       
@@ -519,7 +503,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     }
   };
 
-  const handleToggleExtra = (extra: ProductExtra) => {
+  const handleToggleExtra = React.useCallback((extra: ProductExtra) => {
     setSelectedExtras(prevExtras => {
       const isSelected = prevExtras.some(e => e.id === extra.id);
       
@@ -531,7 +515,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         return [...prevExtras, extra];
       }
     });
-  };
+  }, []);
 
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const serviceFee = subtotal * 0.1;
@@ -585,6 +569,28 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       return total;
     };
 
+    // Memoize the checkbox rendering to prevent unnecessary re-renders
+    const renderExtras = React.useMemo(() => {
+      return availableExtras.map(extra => {
+        const isSelected = selectedExtras.some(e => e.id === extra.id);
+        return (
+          <div key={extra.id} className="flex items-center justify-between border-b pb-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id={`extra-${extra.id}`}
+                checked={isSelected}
+                onCheckedChange={() => handleToggleExtra(extra)}
+              />
+              <label htmlFor={`extra-${extra.id}`} className="text-sm font-medium">
+                {extra.name}
+              </label>
+            </div>
+            <span className="text-sm font-medium">+ R$ {extra.price.toFixed(2).replace('.', ',')}</span>
+          </div>
+        );
+      });
+    }, [availableExtras, selectedExtras]);
+
     if (!showExtrasModal) return null;
     
     return (
@@ -609,21 +615,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               </div>
               
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {availableExtras.map(extra => (
-                  <div key={extra.id} className="flex items-center justify-between border-b pb-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`extra-${extra.id}`}
-                        checked={selectedExtras.some(e => e.id === extra.id)}
-                        onCheckedChange={() => handleToggleExtra(extra)}
-                      />
-                      <label htmlFor={`extra-${extra.id}`} className="text-sm font-medium">
-                        {extra.name}
-                      </label>
-                    </div>
-                    <span className="text-sm font-medium">+ R$ {extra.price.toFixed(2).replace('.', ',')}</span>
-                  </div>
-                ))}
+                {renderExtras}
               </div>
               
               {availableExtras.length === 0 && (
@@ -768,7 +760,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                         variant="ghost"
                         size="icon"
                         className="mx-auto"
-                        onClick={() => handleAddProduct(product.id)}
+                        onClick={() => handleAddProduct(product.id, true)}
                       >
                         <Plus className="h-5 w-5" />
                       </Button>
@@ -869,7 +861,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-full bg-gray-100"
-                    onClick={() => onAddProduct(product.id)}
+                    onClick={() => onAddProduct(product.id, true)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
