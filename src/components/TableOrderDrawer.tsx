@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -191,10 +190,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     }
   };
 
-  // Fetch product extras for a specific product
   const fetchProductExtras = async (productId: string) => {
     try {
-      // First get the product details to check if category has extras
       const { data: product, error: productError } = await supabase
         .from('products')
         .select('*, product_categories(*)')
@@ -204,11 +201,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       if (productError) throw productError;
       
       if (!product.product_categories.has_extras) {
-        // If category doesn't allow extras, return empty array
         return [];
       }
       
-      // Get all extras associated with this product through the product_to_extras junction table
       const { data: productExtrasJoin, error: joinError } = await supabase
         .from('product_to_extras')
         .select('extra_id')
@@ -220,10 +215,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         return [];
       }
       
-      // Get the extra_ids from the join result
       const extraIds = productExtrasJoin.map(join => join.extra_id);
       
-      // Fetch the actual extras
       const { data: extras, error: extrasError } = await supabase
         .from('product_extras')
         .select('*')
@@ -320,16 +313,38 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     }
   };
 
-  const handleAddProductWithObservation = async (productObservation?: string) => {
-    if (!selectedProduct) return;
-    
-    console.log("Adding product with observation:", productObservation || observation);
-    await addProductToOrder(selectedProduct, productObservation || observation, selectedExtras);
-    setShowObservationModal(false);
-    setShowExtrasModal(false);
-    setSelectedProduct(null);
+  const handleAddProduct = async (productId: string, withOptions: boolean = false) => {
+    if (isTableBlocked) {
+      toast.error("Esta mesa está bloqueada para fechamento. Não é possível adicionar itens.");
+      return;
+    }
+
+    const productsToSearch = realProducts.length > 0 ? realProducts : sampleProducts;
+    const product = productsToSearch.find(p => p.id === productId);
+    if (!product) return;
+
+    setSelectedProduct(product);
     setObservation("");
     setSelectedExtras([]);
+
+    const productHasExtras = product.product_categories?.has_extras || false;
+    
+    if (withOptions) {
+      if (productHasExtras) {
+        const extras = await fetchProductExtras(productId);
+        setAvailableExtras(extras);
+        
+        if (extras.length > 0) {
+          setShowExtrasModal(true);
+        } else {
+          setShowObservationModal(true);
+        }
+      } else {
+        setShowObservationModal(true);
+      }
+    } else {
+      await addProductToOrder(product);
+    }
   };
 
   const addProductToOrder = async (product: Product, productObservation?: string, extras: ProductExtra[] = []) => {
@@ -352,13 +367,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         }
       }
 
-      // Calculate total price including extras
       let totalPrice = product.price;
       extras.forEach(extra => {
         totalPrice += extra.price;
       });
 
-      // Check if exact same item (product + observation + extras) exists
       const generateExtrasKey = (extrasArray: ProductExtra[]) => {
         return extrasArray
           .map(e => e.id)
@@ -369,10 +382,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       const currentExtrasKey = generateExtrasKey(extras);
       
       const existingItemIndex = orderItems.findIndex(item => {
-        // Match product and observation
         const basicMatch = item.product_id === product.id && item.observation === productObservation;
         
-        // Match extras (if any)
         let extrasMatch = true;
         if (extras.length > 0 || (item.extras && item.extras.length > 0)) {
           const itemExtrasKey = item.extras 
@@ -401,7 +412,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
           order_id: currentOrderId,
           product_id: product.id,
           name: product.name,
-          price: totalPrice, // Use calculated price with extras
+          price: totalPrice,
           quantity: 1,
           observation: productObservation || null,
           extras: extras.length > 0 ? extras : null
@@ -419,42 +430,16 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     }
   };
 
-  const handleAddProduct = async (productId: string, withOptions: boolean = false) => {
-    if (isTableBlocked) {
-      toast.error("Esta mesa está bloqueada para fechamento. Não é possível adicionar itens.");
-      return;
-    }
-
-    const productsToSearch = realProducts.length > 0 ? realProducts : sampleProducts;
-    const product = productsToSearch.find(p => p.id === productId);
-    if (!product) return;
-
-    setSelectedProduct(product);
+  const handleAddProductWithObservation = async (productObservation?: string) => {
+    if (!selectedProduct) return;
+    
+    console.log("Adding product with observation:", productObservation || observation);
+    await addProductToOrder(selectedProduct, productObservation || observation, selectedExtras);
+    setShowObservationModal(false);
+    setShowExtrasModal(false);
+    setSelectedProduct(null);
     setObservation("");
     setSelectedExtras([]);
-
-    // Check if product category allows extras
-    const productHasExtras = product.category?.has_extras || false;
-    
-    if (withOptions) {
-      if (productHasExtras) {
-        // Fetch available extras for this product
-        const extras = await fetchProductExtras(productId);
-        setAvailableExtras(extras);
-        
-        if (extras.length > 0) {
-          setShowExtrasModal(true);
-        } else {
-          setShowObservationModal(true);
-        }
-      } else {
-        // No extras, just show observation modal
-        setShowObservationModal(true);
-      }
-    } else {
-      // Direct add without options
-      await addProductToOrder(product);
-    }
   };
 
   const handleRemoveProduct = async (itemId: string) => {
@@ -524,10 +509,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       const isSelected = prevExtras.some(e => e.id === extra.id);
       
       if (isSelected) {
-        // Remove the extra
         return prevExtras.filter(e => e.id !== extra.id);
       } else {
-        // Add the extra
         return [...prevExtras, extra];
       }
     });
@@ -558,21 +541,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   }, {} as Record<string, Product[]>);
 
   const ExtrasModal = () => {
-    const [localObservation, setLocalObservation] = useState("");
-    
-    const handleCloseExtrasModal = () => {
-      setShowExtrasModal(false);
-      setSelectedExtras([]);
-    };
-    
-    const handleContinueToObservation = () => {
-      setShowExtrasModal(false);
-      setShowObservationModal(true);
-    };
-    
-    const handleAddWithExtras = () => {
-      handleAddProductWithObservation("");
-    };
+    if (!showExtrasModal) return null;
     
     const calculateTotalPrice = () => {
       if (!selectedProduct) return 0;
@@ -585,19 +554,18 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       return total;
     };
 
-    if (!showExtrasModal) return null;
-    
     return (
       <Dialog open={showExtrasModal} onOpenChange={setShowExtrasModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Selecionar Adicionais</DialogTitle>
+            <DialogTitle>Adicionar {selectedProduct?.name}</DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              Adicione adicionais para personalizar este produto
+              Selecione os adicionais para personalizar este produto
             </DialogDescription>
           </DialogHeader>
+          
           <div className="space-y-4">
-            <div>
+            <div className="p-3 border rounded-md">
               <p className="text-lg font-medium">{selectedProduct?.name}</p>
               <p className="text-sm text-gray-500">Preço base: R$ {selectedProduct?.price.toFixed(2).replace('.', ',')}</p>
             </div>
@@ -643,15 +611,19 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               </div>
             </div>
           </div>
+          
           <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={handleCloseExtrasModal}>
+            <Button variant="outline" onClick={() => setShowExtrasModal(false)}>
               Cancelar
             </Button>
-            <Button variant="outline" onClick={handleContinueToObservation}>
+            <Button onClick={() => {
+              setShowExtrasModal(false);
+              setShowObservationModal(true);
+            }}>
               Adicionar Observação
             </Button>
-            <Button onClick={handleAddWithExtras}>
-              Adicionar ao pedido
+            <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleAddProductWithObservation("")}>
+              Adicionar ao Pedido
             </Button>
           </div>
         </DialogContent>
@@ -668,17 +640,18 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       }
     }, [showObservationModal, observation]);
 
-    const handleCloseModal = () => {
-      setShowObservationModal(false);
-    };
-
-    const handleAddWithObservation = () => {
-      console.log("Setting observation from modal:", localObservation);
-      setObservation(localObservation);
-      handleAddProductWithObservation(localObservation);
-    };
-
     if (!showObservationModal) return null;
+
+    const calculateTotalWithExtras = () => {
+      if (!selectedProduct) return 0;
+      
+      let total = selectedProduct.price;
+      selectedExtras.forEach(extra => {
+        total += extra.price;
+      });
+      
+      return total;
+    };
 
     return (
       <Dialog open={showObservationModal} onOpenChange={setShowObservationModal}>
@@ -686,34 +659,41 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
           <DialogHeader>
             <DialogTitle>Adicionar Observação</DialogTitle>
             <DialogDescription className="text-sm text-gray-500">
-              Adicione uma observação para este produto
+              Adicione uma observação para o preparo deste produto
             </DialogDescription>
           </DialogHeader>
+          
           <div className="space-y-4">
-            <div>
+            <div className="p-3 border rounded-md">
               <p className="text-lg font-medium">{selectedProduct?.name}</p>
-              <p className="text-sm text-gray-500">Preço: R$ {selectedProduct?.price.toFixed(2).replace('.', ',')}</p>
+              
+              <p className="text-sm text-gray-500">Preço base: R$ {selectedProduct?.price.toFixed(2).replace('.', ',')}</p>
               
               {selectedExtras.length > 0 && (
                 <div className="mt-2">
                   <p className="text-sm font-medium">Adicionais selecionados:</p>
-                  <div className="flex flex-wrap gap-1 mt-1">
+                  <div className="space-y-1 mt-1">
                     {selectedExtras.map(extra => (
-                      <span key={extra.id} className="text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded">
-                        {extra.name} (+{extra.price.toFixed(2).replace('.', ',')})
-                      </span>
+                      <div key={extra.id} className="flex justify-between text-xs">
+                        <span className="text-blue-600">+ {extra.name}</span>
+                        <span>R$ {extra.price.toFixed(2).replace('.', ',')}</span>
+                      </div>
                     ))}
+                  </div>
+                  <div className="mt-2 text-sm font-medium border-t pt-1">
+                    Total: R$ {calculateTotalWithExtras().toFixed(2).replace('.', ',')}
                   </div>
                 </div>
               )}
             </div>
+            
             <div className="space-y-2">
               <label htmlFor="observation" className="text-sm font-medium">
                 Observação para o preparo:
               </label>
               <textarea
                 id="observation"
-                placeholder="Ex: Sem cebola com creme, com cebolinha papai, bem passado, etc..."
+                placeholder="Ex: Sem cebola, bem passado, etc..."
                 value={localObservation}
                 onChange={(e) => setLocalObservation(e.target.value)}
                 className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -721,12 +701,23 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               />
             </div>
           </div>
+          
           <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={handleCloseModal}>
-              Cancelar
+            <Button variant="outline" onClick={() => {
+              if (availableExtras.length > 0) {
+                setShowObservationModal(false);
+                setShowExtrasModal(true);
+              } else {
+                setShowObservationModal(false);
+              }
+            }}>
+              {availableExtras.length > 0 ? 'Voltar para Adicionais' : 'Cancelar'}
             </Button>
-            <Button onClick={handleAddWithObservation}>
-              Adicionar ao pedido
+            <Button 
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => handleAddProductWithObservation(localObservation)}
+            >
+              Adicionar ao Pedido
             </Button>
           </div>
         </DialogContent>
@@ -866,20 +857,12 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                 </div>
                 <div className="flex flex-col gap-1">
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-gray-100"
-                    onClick={() => onAddProduct(product.id)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-gray-100"
+                    variant="outline"
+                    size="sm"
+                    className="px-3 py-1 h-auto bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
                     onClick={() => onAddProduct(product.id, true)}
                   >
-                    <FileText className="h-4 w-4" />
+                    <Plus className="h-4 w-4 mr-1" /> Adicionar
                   </Button>
                 </div>
               </div>
