@@ -37,6 +37,11 @@ import {
   List,
   Grid3X3,
   ChevronDown,
+  Banknote,
+  QrCode,
+  CreditCard as CreditCardIcon,
+  Receipt,
+  Ticket,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useIsMobile, useIsSmallMobile } from "@/hooks/use-mobile";
@@ -124,6 +129,12 @@ const productCategories: ProductCategory[] = [
   { id: "outros", name: "Outros", color: "bg-yellow-400", textColor: "text-black", restaurant_id: "" },
 ];
 
+interface TableOrderDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  table: TableOrderTable | null;
+}
+
 const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => {
   const [customerName, setCustomerName] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -144,6 +155,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const [selectedExtras, setSelectedExtras] = useState<ProductExtra[]>([]);
   const [availableExtras, setAvailableExtras] = useState<ProductExtra[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
 
@@ -1202,6 +1214,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               <Button 
                 className={`${isTableBlocked ? "bg-red-800 hover:bg-red-900" : "bg-gray-800 hover:bg-gray-900"} text-sm flex-1 md:flex-initial`}
                 size={isMobile ? "sm" : "default"}
+                onClick={() => setShowPaymentModal(true)}
               >
                 <CreditCard className="mr-1 md:mr-2 h-4 w-4" /> 
                 {isSmallMobile ? "Pagamento" : "PAGAMENTO (F5)"}
@@ -1316,8 +1329,101 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
 
       <ObservationModal />
       <ExtrasModal />
+      <PaymentModal />
     </>
   );
+
+  const paymentMethods: PaymentMethod[] = [
+    {
+      id: "cash",
+      name: "Dinheiro",
+      icon: <Banknote className="h-5 w-5" />,
+      color: "bg-green-100 text-green-700 border-green-300"
+    },
+    {
+      id: "pix",
+      name: "PIX",
+      icon: <QrCode className="h-5 w-5" />,
+      color: "bg-blue-100 text-blue-700 border-blue-300"
+    },
+    {
+      id: "credit",
+      name: "Cartão de Crédito",
+      icon: <CreditCardIcon className="h-5 w-5" />,
+      color: "bg-indigo-100 text-indigo-700 border-indigo-300"
+    },
+    {
+      id: "debit",
+      name: "Cartão de Débito",
+      icon: <CreditCardIcon className="h-5 w-5" />,
+      color: "bg-purple-100 text-purple-700 border-purple-300"
+    },
+    {
+      id: "meal_voucher",
+      name: "Vale Refeição",
+      icon: <Ticket className="h-5 w-5" />,
+      color: "bg-amber-100 text-amber-700 border-amber-300"
+    },
+    {
+      id: "food_voucher",
+      name: "Vale Alimentação",
+      icon: <Receipt className="h-5 w-5" />,
+      color: "bg-orange-100 text-orange-700 border-orange-300"
+    }
+  ];
+
+  const handlePayment = (methodId: string) => {
+    toast.success(`Pagamento via ${paymentMethods.find(m => m.id === methodId)?.name} selecionado`);
+    setShowPaymentModal(false);
+  };
+
+  const PaymentModal = () => {
+    if (!showPaymentModal) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div 
+          className="bg-white rounded-lg shadow-lg w-full max-w-md mx-4 p-4 md:p-6 max-h-[90vh] overflow-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg md:text-xl font-bold">Formas de Pagamento</h2>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-full" 
+              onClick={() => setShowPaymentModal(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="text-sm text-gray-500 mb-4">
+            Selecione a forma de pagamento para finalizar o pedido
+          </div>
+          
+          <div className="space-y-2">
+            {paymentMethods.map((method) => (
+              <div 
+                key={method.id}
+                className={`border ${method.color} rounded-lg p-4 flex items-center cursor-pointer hover:opacity-80 transition-opacity`}
+                onClick={() => handlePayment(method.id)}
+              >
+                <div className="mr-3">
+                  {method.icon}
+                </div>
+                <div className="font-medium">{method.name}</div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-6 text-sm text-gray-500 text-center">
+            Total a pagar: <span className="font-bold">R$ {total.toFixed(2).replace('.', ',')}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
