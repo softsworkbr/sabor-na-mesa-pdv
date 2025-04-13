@@ -170,25 +170,33 @@ export const getOrders = async (status?: string): Promise<Order[]> => {
  */
 export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderItem> => {
   try {
+    console.log("Adding order item with observation:", data.observation);
+    
     // Ensure observation is properly passed to the database
+    const insertData = {
+      order_id: data.order_id,
+      product_id: data.product_id,
+      name: data.name,
+      price: data.price,
+      quantity: data.quantity,
+      observation: data.observation === "" ? null : data.observation
+    };
+    
+    console.log("Insert data being sent to database:", insertData);
+    
     const { data: orderItem, error } = await supabase
       .from('order_items')
-      .insert({
-        order_id: data.order_id,
-        product_id: data.product_id,
-        name: data.name,
-        price: data.price,
-        quantity: data.quantity,
-        observation: data.observation || null // Explicitly handle null for empty observation
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (error) {
+      console.error("Database error when inserting item:", error);
       toast.error(`Erro ao adicionar item ao pedido: ${error.message}`);
       throw error;
     }
 
+    console.log("Successfully added item:", orderItem);
     return orderItem as OrderItem;
   } catch (error: any) {
     console.error('Error adding order item:', error);
@@ -201,6 +209,8 @@ export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderIte
  */
 export const updateOrderItem = async (itemId: string, data: UpdateOrderItemProps): Promise<OrderItem> => {
   try {
+    console.log("Updating order item:", itemId, "with data:", data);
+    
     // Ensure observation is properly handled during updates
     const updateData: UpdateOrderItemProps = { ...data };
     
@@ -208,6 +218,8 @@ export const updateOrderItem = async (itemId: string, data: UpdateOrderItemProps
     if (updateData.observation === '') {
       updateData.observation = null;
     }
+    
+    console.log("Update data being sent to database:", updateData);
     
     const { data: updatedItem, error } = await supabase
       .from('order_items')
@@ -217,10 +229,12 @@ export const updateOrderItem = async (itemId: string, data: UpdateOrderItemProps
       .single();
 
     if (error) {
+      console.error("Database error when updating item:", error);
       toast.error(`Erro ao atualizar item: ${error.message}`);
       throw error;
     }
 
+    console.log("Successfully updated item:", updatedItem);
     return updatedItem as OrderItem;
   } catch (error: any) {
     console.error('Error updating order item:', error);

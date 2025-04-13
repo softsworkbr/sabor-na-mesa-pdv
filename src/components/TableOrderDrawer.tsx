@@ -263,24 +263,14 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     }
   };
 
-  const handleAddProduct = async (productId: string, withObservation: boolean = false) => {
-    if (isTableBlocked) {
-      toast.error("Esta mesa está bloqueada para fechamento. Não é possível adicionar itens.");
-      return;
-    }
-
-    const productsToSearch = realProducts.length > 0 ? realProducts : sampleProducts;
-    const product = productsToSearch.find(p => p.id === productId);
-    if (!product) return;
-
-    if (withObservation) {
-      setSelectedProduct(product);
-      setObservation("");
-      setShowObservationModal(true);
-      return;
-    }
-
-    await addProductToOrder(product);
+  const handleAddProductWithObservation = async () => {
+    if (!selectedProduct) return;
+    
+    console.log("Adding product with observation:", observation);
+    await addProductToOrder(selectedProduct, observation);
+    setShowObservationModal(false);
+    setSelectedProduct(null);
+    setObservation("");
   };
 
   const addProductToOrder = async (product: Product, productObservation?: string) => {
@@ -290,6 +280,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     }
     
     try {
+      console.log("Adding product to order:", product.name);
+      console.log("With observation:", productObservation);
+      
       let currentOrderId = orderId;
       if (!currentOrderId) {
         currentOrderId = await saveOrder();
@@ -324,6 +317,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
           observation: productObservation || null
         });
         
+        console.log("New item added with observation:", newItem);
         setOrderItems([...orderItems, newItem]);
       }
 
@@ -335,13 +329,24 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     }
   };
 
-  const handleAddProductWithObservation = async () => {
-    if (!selectedProduct) return;
-    
-    await addProductToOrder(selectedProduct, observation);
-    setShowObservationModal(false);
-    setSelectedProduct(null);
-    setObservation("");
+  const handleAddProduct = async (productId: string, withObservation: boolean = false) => {
+    if (isTableBlocked) {
+      toast.error("Esta mesa está bloqueada para fechamento. Não é possível adicionar itens.");
+      return;
+    }
+
+    const productsToSearch = realProducts.length > 0 ? realProducts : sampleProducts;
+    const product = productsToSearch.find(p => p.id === productId);
+    if (!product) return;
+
+    if (withObservation) {
+      setSelectedProduct(product);
+      setObservation("");
+      setShowObservationModal(true);
+      return;
+    }
+
+    await addProductToOrder(product);
   };
 
   const handleRemoveProduct = async (itemId: string) => {
@@ -444,6 +449,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     };
 
     const handleAddWithObservation = () => {
+      console.log("Setting observation from modal:", localObservation);
       setObservation(localObservation);
       handleAddProductWithObservation();
     };
