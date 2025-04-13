@@ -12,11 +12,6 @@ interface OrderProductProps {
 }
 
 const OrderProduct = ({ item, onChangeQuantity, onRemove, disabled = false }: OrderProductProps) => {
-  // Calcular preço base (sem adicionais)
-  const basePrice = item.extras && item.extras.length > 0 
-    ? item.price - item.extras.reduce((sum, extra) => sum + extra.price, 0) 
-    : item.price;
-    
   return (
     <div className="border-b p-3 flex items-center gap-2 hover:bg-gray-50">
       <div className="bg-gray-200 p-2 rounded-md min-w-6 text-center font-medium">
@@ -25,31 +20,19 @@ const OrderProduct = ({ item, onChangeQuantity, onRemove, disabled = false }: Or
       
       <div className="flex-grow">
         <div className="font-medium">{item.name}</div>
-        
-        {/* Preço base */}
-        <div className="text-sm text-gray-600">
-          R$ {basePrice.toFixed(2).replace('.', ',')}
-        </div>
-        
-        {/* Adicionais */}
-        {item.extras && item.extras.length > 0 && (
-          <div className="mt-1.5">
-            {item.extras.map((extra, index) => (
-              <div key={extra.id || index} className="flex items-center text-xs">
-                <span className="text-blue-600">+ {extra.name}</span>
-                <span className="ml-1 text-gray-500">(R$ {extra.price.toFixed(2).replace('.', ',')})</span>
-              </div>
-            ))}
-            <div className="text-xs font-medium mt-0.5">
-              Subtotal com adicionais: R$ {item.price.toFixed(2).replace('.', ',')}
-            </div>
+        {item.observation && (
+          <div className="text-sm text-gray-500 italic bg-gray-50 p-1 rounded mt-1">
+            {item.observation}
           </div>
         )}
         
-        {/* Observações */}
-        {item.observation && (
-          <div className="text-sm text-gray-500 italic bg-gray-50 p-1 rounded mt-1 border-l-2 border-amber-400">
-            {item.observation}
+        {item.extras && item.extras.length > 0 && (
+          <div className="mt-1">
+            {item.extras.map((extra, index) => (
+              <div key={extra.id || index} className="text-xs bg-blue-50 text-blue-800 inline-block mr-1 px-2 py-0.5 rounded">
+                +{extra.name} ({extra.price.toFixed(2).replace('.', ',')})
+              </div>
+            ))}
           </div>
         )}
       </div>
