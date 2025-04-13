@@ -162,17 +162,15 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const [selectedExtras, setSelectedExtras] = useState<ProductExtra[]>([]);
   const [availableExtras, setAvailableExtras] = useState<ProductExtra[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const isMobile = useIsMobile();
-  const isSmallMobile = useIsSmallMobile();
-
-  // Add these new state variables for the payment modal
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [currentPaymentMethod, setCurrentPaymentMethod] = useState<string | null>(null);
   const [currentPaymentAmount, setCurrentPaymentAmount] = useState("");
   const [cashAmount, setCashAmount] = useState("");
   const [changeDue, setChangeDue] = useState(0);
-  
+  const isMobile = useIsMobile();
+  const isSmallMobile = useIsSmallMobile();
+
   useEffect(() => {
     if (isOpen && table?.id) {
       fetchProductCategories();
@@ -831,4 +829,36 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                 placeholder="Ex: Sem cebola com creme, com cebolinha papai, bem passado, etc..."
                 value={localObservation}
                 onChange={(e) => setLocalObservation(e.target.value)}
-                className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible
+                className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+          </div>
+          
+          <div className="flex flex-col md:flex-row md:justify-end gap-2 mt-4">
+            <Button 
+              variant="outline" 
+              onClick={handleCloseModal}
+              className="md:order-1"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleAddWithObservation}
+              className="md:order-2 bg-primary hover:bg-primary/90"
+            >
+              Adicionar ao pedido
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {/* Existing component JSX */}
+    </div>
+  );
+};
+
+export default TableOrderDrawer;
