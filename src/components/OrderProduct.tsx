@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Minus, Plus, Trash2, MoreVertical, Printer } from "lucide-react";
+import { Minus, Plus, Trash2, MoreVertical, Printer, FileText } from "lucide-react";
 import { OrderItem } from "@/utils/restaurant";
 
 interface OrderProductProps {
