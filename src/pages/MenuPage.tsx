@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -399,11 +398,9 @@ const MenuPage = () => {
     setIsLoading(true);
     
     try {
-      // Fetch all available extras
       const allExtras = await getProductExtrasByRestaurant(currentRestaurant!.id);
       setAvailableExtras(allExtras as ProductExtra[]);
       
-      // Fetch extras already assigned to this product
       const productExtras = await getProductExtras(product.id);
       setSelectedExtras(productExtras.map(extra => extra.id));
     } catch (error) {
@@ -445,7 +442,6 @@ const MenuPage = () => {
     setIsLoading(true);
     try {
       if (editingCategory) {
-        // Update existing category
         const { error } = await supabase
           .from('product_categories')
           .update({
@@ -461,7 +457,6 @@ const MenuPage = () => {
         if (error) throw error;
         toast.success("Categoria atualizada com sucesso!");
       } else {
-        // Create new category
         const { error } = await supabase
           .from('product_categories')
           .insert({
@@ -477,7 +472,6 @@ const MenuPage = () => {
         toast.success("Categoria criada com sucesso!");
       }
       
-      // Refresh categories list
       await fetchProductCategories();
       closeCategoryDialog();
     } catch (error: any) {
@@ -507,14 +501,11 @@ const MenuPage = () => {
       };
 
       if (editingProduct) {
-        // Update existing product
         await updateProduct(editingProduct.id, productData);
       } else {
-        // Create new product
         await createProduct(productData);
       }
       
-      // Refresh products list
       if (activeCategory === 'all') {
         await fetchProducts();
       } else {
@@ -542,20 +533,17 @@ const MenuPage = () => {
         name: values.name,
         description: values.description || null,
         price: values.price,
-        category_id: values.category_id || null,
+        category_id: values.category_id === "null" ? null : values.category_id || null,
         restaurant_id: currentRestaurant.id,
         active: values.active,
       };
 
       if (editingExtra) {
-        // Update existing extra
         await updateProductExtra(editingExtra.id, extraData);
       } else {
-        // Create new extra
         await createProductExtra(extraData);
       }
       
-      // Refresh extras list
       if (activeCategory === 'all') {
         await fetchExtras();
       } else {
@@ -1302,7 +1290,7 @@ const MenuPage = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Sem categoria</SelectItem>
+                          <SelectItem value="null">Sem categoria</SelectItem>
                           {productCategories.map(category => (
                             <SelectItem 
                               key={category.id} 
@@ -1593,4 +1581,3 @@ const ExtraItemCard = ({
 };
 
 export default MenuPage;
-
