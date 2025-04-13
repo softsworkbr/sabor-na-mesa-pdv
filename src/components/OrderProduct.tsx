@@ -8,9 +8,10 @@ interface OrderProductProps {
   item: OrderItem;
   onChangeQuantity: (newQuantity: number) => void;
   onRemove: () => void;
+  disabled?: boolean; // Added disabled prop
 }
 
-const OrderProduct = ({ item, onChangeQuantity, onRemove }: OrderProductProps) => {
+const OrderProduct = ({ item, onChangeQuantity, onRemove, disabled = false }: OrderProductProps) => {
   return (
     <div className="border-b p-3 flex items-center gap-2 hover:bg-gray-50">
       <div className="bg-gray-200 p-2 rounded-md min-w-6 text-center font-medium">
@@ -36,6 +37,7 @@ const OrderProduct = ({ item, onChangeQuantity, onRemove }: OrderProductProps) =
           size="icon" 
           className="h-7 w-7 rounded-full hover:bg-green-50"
           onClick={() => onChangeQuantity(item.quantity + 1)}
+          disabled={disabled}
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -45,6 +47,7 @@ const OrderProduct = ({ item, onChangeQuantity, onRemove }: OrderProductProps) =
           size="icon" 
           className="h-7 w-7 rounded-full hover:bg-red-50"
           onClick={() => onChangeQuantity(item.quantity - 1)}
+          disabled={disabled}
         >
           <Minus className="h-4 w-4" />
         </Button>
@@ -54,6 +57,7 @@ const OrderProduct = ({ item, onChangeQuantity, onRemove }: OrderProductProps) =
           size="icon" 
           className="h-7 w-7 rounded-full text-gray-500 hover:text-gray-800"
           onClick={onRemove}
+          disabled={disabled}
         >
           <Trash2 className="h-4 w-4" />
         </Button>
@@ -62,6 +66,7 @@ const OrderProduct = ({ item, onChangeQuantity, onRemove }: OrderProductProps) =
           variant="ghost" 
           size="icon" 
           className="h-7 w-7 rounded-full text-gray-500 hover:text-gray-800"
+          disabled={disabled}
         >
           <MoreVertical className="h-4 w-4" />
         </Button>
