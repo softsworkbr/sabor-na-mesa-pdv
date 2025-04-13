@@ -1,4 +1,3 @@
-
 import { Product } from "./productTypes";
 
 export type OrderStatus = "active" | "completed" | "cancelled" | "pending";
@@ -10,7 +9,7 @@ export interface OrderItem {
   name: string;
   price: number;
   quantity: number;
-  observation?: string;
+  observation?: string | null;
 }
 
 export interface Order {
