@@ -263,11 +263,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     }
   };
 
-  const handleAddProductWithObservation = async () => {
+  const handleAddProductWithObservation = async (productObservation?: string) => {
     if (!selectedProduct) return;
     
-    console.log("Adding product with observation:", observation);
-    await addProductToOrder(selectedProduct, observation);
+    console.log("Adding product with observation:", productObservation || observation);
+    await addProductToOrder(selectedProduct, productObservation || observation);
     setShowObservationModal(false);
     setSelectedProduct(null);
     setObservation("");
@@ -451,7 +451,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     const handleAddWithObservation = () => {
       console.log("Setting observation from modal:", localObservation);
       setObservation(localObservation);
-      handleAddProductWithObservation();
+      handleAddProductWithObservation(localObservation);
     };
 
     if (!showObservationModal) return null;
