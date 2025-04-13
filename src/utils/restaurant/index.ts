@@ -22,7 +22,8 @@ export type {
 // Export product types
 export type {
   Product,
-  ProductCategory
+  ProductCategory,
+  ProductExtra
 } from './productTypes';
 
 // Export order types
@@ -33,7 +34,8 @@ export type {
   CreateOrderProps,
   UpdateOrderProps,
   CreateOrderItemProps,
-  UpdateOrderItemProps
+  UpdateOrderItemProps,
+  ProductExtra as OrderProductExtra
 } from './orderTypes';
 
 // Export restaurant management functions

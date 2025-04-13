@@ -7,8 +7,36 @@ import {
   CreateOrderProps, 
   UpdateOrderProps, 
   CreateOrderItemProps, 
-  UpdateOrderItemProps 
+  UpdateOrderItemProps,
+  ProductExtra
 } from "./orderTypes";
+
+/**
+ * Helper function to convert database extras (JSON) to typed ProductExtra array
+ */
+const parseExtras = (extrasJson: any): ProductExtra[] | null => {
+  if (!extrasJson) return null;
+  
+  try {
+    if (Array.isArray(extrasJson)) {
+      return extrasJson as ProductExtra[];
+    }
+    return null;
+  } catch (error) {
+    console.error("Error parsing extras:", error);
+    return null;
+  }
+};
+
+/**
+ * Helper function to convert database item to OrderItem with proper types
+ */
+const convertToOrderItem = (item: any): OrderItem => {
+  return {
+    ...item,
+    extras: parseExtras(item.extras)
+  };
+};
 
 /**
  * Creates a new order
@@ -91,8 +119,11 @@ export const getOrderById = async (orderId: string): Promise<Order | null> => {
       toast.error(`Erro ao buscar itens do pedido: ${itemsError.message}`);
       throw itemsError;
     }
+    
+    // Convert items with proper type handling for extras
+    const typedItems = items ? items.map(convertToOrderItem) : [];
 
-    return { ...order, items: items || [] } as Order;
+    return { ...order, items: typedItems } as Order;
   } catch (error: any) {
     console.error('Error fetching order:', error);
     throw error;
@@ -130,8 +161,11 @@ export const getOrderByTableId = async (tableId: string): Promise<Order | null> 
       toast.error(`Erro ao buscar itens do pedido: ${itemsError.message}`);
       throw itemsError;
     }
+    
+    // Convert items with proper type handling for extras
+    const typedItems = items ? items.map(convertToOrderItem) : [];
 
-    return { ...orders, items: items || [] } as Order;
+    return { ...orders, items: typedItems } as Order;
   } catch (error: any) {
     console.error('Error fetching order for table:', error);
     throw error;
@@ -172,8 +206,8 @@ export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderIte
   try {
     console.log("Adding order item with observation:", data.observation);
     
-    // Ensure observation is properly passed to the database
-    const insertData = {
+    // Prepare data for database insertion
+    const insertData: any = {
       order_id: data.order_id,
       product_id: data.product_id,
       name: data.name,
@@ -181,6 +215,11 @@ export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderIte
       quantity: data.quantity,
       observation: data.observation === "" ? null : data.observation
     };
+    
+    // Handle extras field - make sure it's stored as JSON in the database
+    if (data.extras) {
+      insertData.extras = data.extras;
+    }
     
     console.log("Insert data being sent to database:", insertData);
     
@@ -197,7 +236,8 @@ export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderIte
     }
 
     console.log("Successfully added item:", orderItem);
-    return orderItem as OrderItem;
+    // Convert the returned item with properly typed extras
+    return convertToOrderItem(orderItem);
   } catch (error: any) {
     console.error('Error adding order item:', error);
     throw error;
@@ -211,8 +251,8 @@ export const updateOrderItem = async (itemId: string, data: UpdateOrderItemProps
   try {
     console.log("Updating order item:", itemId, "with data:", data);
     
-    // Ensure observation is properly handled during updates
-    const updateData: UpdateOrderItemProps = { ...data };
+    // Prepare update data
+    const updateData: any = { ...data };
     
     // If observation is empty string, convert to null for database
     if (updateData.observation === '') {
@@ -235,7 +275,8 @@ export const updateOrderItem = async (itemId: string, data: UpdateOrderItemProps
     }
 
     console.log("Successfully updated item:", updatedItem);
-    return updatedItem as OrderItem;
+    // Convert the returned item with properly typed extras
+    return convertToOrderItem(updatedItem);
   } catch (error: any) {
     console.error('Error updating order item:', error);
     throw error;
