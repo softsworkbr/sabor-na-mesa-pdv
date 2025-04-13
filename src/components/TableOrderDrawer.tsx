@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -32,9 +32,14 @@ import {
   Loader2,
   Tag,
   Check,
-  X
+  X,
+  Filter,
+  List,
+  Grid3X3,
+  ChevronDown,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useIsMobile, useIsSmallMobile } from "@/hooks/use-mobile";
 import OrderProduct from "./OrderProduct";
 import {
   Table,
@@ -63,6 +68,12 @@ import { Order, OrderItem } from "@/utils/restaurant/orderTypes";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TableOrderDrawerProps {
   isOpen: boolean;
@@ -132,9 +143,10 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const [showExtrasModal, setShowExtrasModal] = useState(false);
   const [selectedExtras, setSelectedExtras] = useState<ProductExtra[]>([]);
   const [availableExtras, setAvailableExtras] = useState<ProductExtra[]>([]);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const isMobile = useIsMobile();
+  const isSmallMobile = useIsSmallMobile();
 
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-  
   useEffect(() => {
     if (isOpen && table?.id) {
       fetchProductCategories();
@@ -891,6 +903,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                 category={categoriesToUse.find(c => c.id === activeCategory)}
                 products={filteredProducts}
                 onAddProduct={handleAddProduct}
+                viewMode={viewMode}
+                isMobile={isMobile}
               />
             ) : (
               Object.entries(productsByCategory).map(([categoryId, products]) => {
@@ -901,6 +915,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                     category={category}
                     products={products}
                     onAddProduct={handleAddProduct}
+                    viewMode={viewMode}
+                    isMobile={isMobile}
                   />
                 );
               })
@@ -917,10 +933,18 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     );
   };
 
-  const CategoryProductGroup = ({ category, products, onAddProduct }: { 
+  const CategoryProductGroup = ({ 
+    category, 
+    products, 
+    onAddProduct,
+    viewMode,
+    isMobile 
+  }: { 
     category?: ProductCategory; 
     products: Product[];
     onAddProduct: (id: string, withOptions?: boolean) => void;
+    viewMode: "grid" | "list";
+    isMobile: boolean;
   }) => {
     if (!category) return null;
     
@@ -934,44 +958,79 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
             )}
           </h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {products.map((product) => (
-            <div key={product.id} className="border rounded-lg bg-white shadow-sm p-3">
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h4 className="font-medium">
+        {viewMode === "grid" ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+            {products.map((product) => (
+              <div key={product.id} className="border rounded-lg bg-white shadow-sm p-2">
+                <div className="flex flex-col h-full">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm">
+                      {product.name}
+                      {category.has_extras && (
+                        <span className="ml-1 text-xs bg-blue-50 text-blue-800 px-1 rounded">+</span>
+                      )}
+                    </h4>
+                    {product.description && (
+                      <p className="text-xs text-gray-500 line-clamp-1">{product.description}</p>
+                    )}
+                    <p className="text-base font-bold mt-1">R$ {product.price.toFixed(2).replace('.', ',')}</p>
+                  </div>
+                  <div className="flex justify-between items-center mt-2 pt-2 border-t">
+                    <Button
+                      size={isMobile ? "sm" : "default"}
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-blue-600"
+                      onClick={() => onAddProduct(product.id, true)}
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size={isMobile ? "sm" : "default"}
+                      variant="default"
+                      className="h-8 rounded-full px-3 bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => onAddProduct(product.id)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {products.map((product) => (
+              <div key={product.id} className="border rounded-lg bg-white shadow-sm p-2 flex justify-between items-center">
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-medium text-sm truncate">
                     {product.name}
                     {category.has_extras && (
-                      <span className="ml-1 text-xs bg-blue-50 text-blue-800 px-1 rounded">+Adicionais</span>
+                      <span className="ml-1 text-xs bg-blue-50 text-blue-800 px-1 rounded">+</span>
                     )}
                   </h4>
-                  {product.description && (
-                    <p className="text-sm text-gray-500 line-clamp-1">{product.description}</p>
-                  )}
-                  <p className="text-lg font-bold mt-1">R$ {product.price.toFixed(2).replace('.', ',')}</p>
+                  <p className="text-sm font-bold">R$ {product.price.toFixed(2).replace('.', ',')}</p>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-1 ml-2">
                   <Button
+                    size="sm"
                     variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-gray-100"
-                    onClick={() => onAddProduct(product.id, true)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full bg-gray-100"
+                    className="h-8 w-8 p-0 text-blue-600"
                     onClick={() => onAddProduct(product.id, true)}
                   >
                     <FileText className="h-4 w-4" />
                   </Button>
+                  <Button
+                    size="sm"
+                    className="h-8 w-8 p-0 bg-green-600 hover:bg-green-700 text-white rounded-full"
+                    onClick={() => onAddProduct(product.id)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -1128,43 +1187,96 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         </div>
       ) : (
         <div className="flex flex-col h-full">
-          <div className="bg-gray-100 p-4 flex items-center justify-between border-b">
-            <Button variant="outline" onClick={() => setCurrentStep("order")}>
-              <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para pedido
-            </Button>
-            <div className="text-lg font-bold">Localizar Produto</div>
-            <div className="flex items-center gap-2 w-1/3">
+          <div className="bg-gray-100 p-3 md:p-4 flex flex-col md:flex-row gap-2 md:items-center md:justify-between border-b">
+            <div className="flex items-center">
+              <Button variant="outline" onClick={() => setCurrentStep("order")} className="mr-2" size={isMobile ? "sm" : "default"}>
+                <ArrowLeft className="h-4 w-4 mr-1 md:mr-2" /> 
+                <span className={isSmallMobile ? "hidden" : ""}>Voltar</span>
+              </Button>
+              <h2 className="text-base md:text-lg font-bold">Produtos</h2>
+            </div>
+            <div className="flex items-center gap-2 w-full md:w-1/3 mt-2 md:mt-0">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Pesquisar..."
+                  placeholder="Pesquisar produto..."
                   className="pl-9"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    {viewMode === "grid" ? (
+                      <Grid3X3 className="h-4 w-4" />
+                    ) : (
+                      <List className="h-4 w-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setViewMode("grid")}>
+                    <Grid3X3 className="h-4 w-4 mr-2" /> Grid
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setViewMode("list")}>
+                    <List className="h-4 w-4 mr-2" /> Lista
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
           <div className="flex h-[calc(100vh-200px)] overflow-hidden">
-            <div className="w-64 border-r overflow-y-auto">
-              {categoriesToUse.map((category) => (
-                <div
-                  key={category.id}
-                  className={`${category.color || 'bg-gray-200'} ${category.textColor || 'text-gray-800'} border-b border-gray-300 cursor-pointer hover:opacity-90 transition-colors`}
-                  onClick={() => setActiveCategory(category.id)}
-                >
-                  <div className={`p-4 flex items-center ${activeCategory === category.id ? 'font-bold' : ''}`}>
-                    <div className="mr-2">
-                      {category.id === "todas" ? "•" : category.has_extras ? "+" : ""}
+            {isMobile ? (
+              <div className="w-full p-3 bg-gray-50 border-b">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="w-full justify-between">
+                      <span className="truncate">
+                        {categoriesToUse.find(c => c.id === activeCategory)?.name || "Todas"}
+                      </span>
+                      <ChevronDown className="h-4 w-4 ml-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[280px] max-h-[50vh] overflow-y-auto">
+                    {categoriesToUse.map((category) => (
+                      <DropdownMenuItem 
+                        key={category.id}
+                        onClick={() => setActiveCategory(category.id)}
+                        className={activeCategory === category.id ? "bg-accent" : ""}
+                      >
+                        <div 
+                          className={`w-3 h-3 mr-2 rounded-full ${category.color || "bg-gray-200"}`} 
+                        />
+                        <span>{category.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <ProductsView />
+              </div>
+            ) : (
+              <>
+                <div className="w-64 border-r overflow-y-auto">
+                  {categoriesToUse.map((category) => (
+                    <div
+                      key={category.id}
+                      className={`${category.color || 'bg-gray-200'} ${category.textColor || 'text-gray-800'} border-b border-gray-300 cursor-pointer hover:opacity-90 transition-colors`}
+                      onClick={() => setActiveCategory(category.id)}
+                    >
+                      <div className={`p-4 flex items-center ${activeCategory === category.id ? 'font-bold' : ''}`}>
+                        <div className="mr-2">
+                          {category.id === "todas" ? "•" : category.has_extras ? "+" : ""}
+                        </div>
+                        <div>{category.name}</div>
+                      </div>
                     </div>
-                    <div>{category.name}</div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-
-            <ProductsView />
+                <ProductsView />
+              </>
+            )}
           </div>
 
           <div className="mt-auto border-t p-4 bg-gray-50">
