@@ -192,10 +192,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     }
   };
 
-  // Fetch product extras for a specific product
   const fetchProductExtras = async (productId: string) => {
     try {
-      // First get the product details to check if category has extras
       const { data: product, error: productError } = await supabase
         .from('products')
         .select('*, product_categories(*)')
@@ -205,11 +203,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       if (productError) throw productError;
       
       if (!product.product_categories.has_extras) {
-        // If category doesn't allow extras, return empty array
         return [];
       }
       
-      // Buscar todos os extras disponíveis (ativos) sem filtrar por produto
       const { data: extras, error: extrasError } = await supabase
         .from('product_extras')
         .select('*')
@@ -309,7 +305,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const handleAddProductWithObservation = async (productObservation?: string) => {
     if (!selectedProduct) return;
     
-    // Garantir que temos uma cópia dos extras selecionados
     const extrasToSave = [...selectedExtras];
     
     console.log("Adding product with observation:", productObservation || observation);
@@ -348,13 +343,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         }
       }
 
-      // Calculate total price including extras
       let totalPrice = product.price;
       extras.forEach(extra => {
         totalPrice += extra.price;
       });
 
-      // Check if exact same item (product + observation + extras) exists
       const generateExtrasKey = (extrasArray: ProductExtra[]) => {
         return extrasArray
           .map(e => e.id)
@@ -365,10 +358,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       const currentExtrasKey = generateExtrasKey(extras);
       
       const existingItemIndex = orderItems.findIndex(item => {
-        // Match product and observation
         const basicMatch = item.product_id === product.id && item.observation === productObservation;
         
-        // Match extras (if any)
         let extrasMatch = true;
         if (extras.length > 0 || (item.extras && item.extras.length > 0)) {
           const itemExtrasKey = item.extras 
@@ -397,7 +388,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
           order_id: currentOrderId,
           product_id: product.id,
           name: product.name,
-          price: totalPrice, // Use calculated price with extras
+          price: totalPrice,
           quantity: 1,
           observation: productObservation || null,
           extras: extras.length > 0 ? extras : null
@@ -429,12 +420,10 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     setObservation("");
     setSelectedExtras([]);
 
-    // Check if product category allows extras
     const productHasExtras = product.category?.has_extras || false;
     
     if (withOptions) {
       if (productHasExtras) {
-        // Fetch available extras for this product
         const extras = await fetchProductExtras(productId);
         setAvailableExtras(extras);
         
@@ -444,11 +433,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
           setShowObservationModal(true);
         }
       } else {
-        // No extras, just show observation modal
         setShowObservationModal(true);
       }
     } else {
-      // Direct add without options
       await addProductToOrder(product);
     }
   };
@@ -520,10 +507,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       const isSelected = prevExtras.some(e => e.id === extra.id);
       
       if (isSelected) {
-        // Remove the extra
         return prevExtras.filter(e => e.id !== extra.id);
       } else {
-        // Add the extra
         return [...prevExtras, extra];
       }
     });
@@ -568,18 +553,15 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     };
     
     const handleContinueToObservation = () => {
-      // Atualizar o estado global com uma cópia dos extras locais
       setSelectedExtras([...localExtras]);
       setShowExtrasModal(false);
       setShowObservationModal(true);
     };
     
     const handleAddWithExtras = () => {
-      // Atualizar o estado global com uma cópia dos extras locais
       const extrasToSave = [...localExtras];
       setSelectedExtras(extrasToSave);
       
-      // Chamar diretamente com os extras locais para evitar problemas de timing
       if (selectedProduct) {
         addProductToOrder(selectedProduct, "", extrasToSave)
           .then(() => {
@@ -719,7 +701,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
             </Button>
             <Button 
               onClick={handleAddWithExtras}
-              className="md:order-3"
+              className="md:order-3 bg-primary hover:bg-primary/90"
             >
               Adicionar ao pedido
             </Button>
@@ -732,7 +714,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const ObservationModal = () => {
     const [localObservation, setLocalObservation] = useState("");
     
-    // Sincronizar estado local com estado global quando o modal abre
     React.useEffect(() => {
       if (showObservationModal) {
         setLocalObservation(observation);
@@ -744,10 +725,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     };
 
     const handleAddWithObservation = () => {
-      // Atualizar o estado global
       setObservation(localObservation);
       
-      // Chamar diretamente com a observação local para evitar problemas de timing
       if (selectedProduct) {
         addProductToOrder(selectedProduct, localObservation, selectedExtras)
           .then(() => {
