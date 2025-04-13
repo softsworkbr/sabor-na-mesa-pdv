@@ -227,7 +227,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   };
 
   const saveOrder = async () => {
-    if (!table || !table.id) return;
+    if (!table || !table.id) return null;
     
     setLoading(true);
     try {
@@ -250,11 +250,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       }
       
       toast.success(currentOrder ? "Pedido atualizado" : "Pedido criado com sucesso");
-      return true;
+      return orderId || order?.id;
     } catch (error) {
       console.error("Error saving order:", error);
       toast.error("Erro ao salvar pedido");
-      return false;
+      return null;
     } finally {
       setLoading(false);
     }
@@ -276,12 +276,16 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   };
 
   const addProductToOrder = async (product: Product, productObservation?: string) => {
-    if (!orderId) {
-      const success = await saveOrder();
-      if (!success) return;
-    }
-
     try {
+      let currentOrderId = orderId;
+      if (!currentOrderId) {
+        currentOrderId = await saveOrder();
+        if (!currentOrderId) {
+          toast.error("Não foi possível criar o pedido");
+          return;
+        }
+      }
+
       const existingItemIndex = orderItems.findIndex(item => 
         item.product_id === product.id && item.observation === productObservation
       );
@@ -299,7 +303,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         setOrderItems(updatedItems);
       } else {
         const newItem = await addOrderItem({
-          order_id: orderId!,
+          order_id: currentOrderId,
           product_id: product.id,
           name: product.name,
           price: product.price,
@@ -310,7 +314,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         setOrderItems([...orderItems, newItem]);
       }
 
-      await calculateOrderTotal(orderId!);
+      await calculateOrderTotal(currentOrderId);
       toast.success(`"${product.name}" adicionado ao pedido.`);
     } catch (error) {
       console.error("Error adding product to order:", error);
