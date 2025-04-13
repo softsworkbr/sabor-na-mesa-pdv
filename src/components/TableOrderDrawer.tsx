@@ -688,20 +688,20 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
             <Button 
               variant="outline" 
               onClick={handleCloseExtrasModal}
-              className="w-full md:w-auto md:order-1"
+              className="md:order-1"
             >
               Cancelar
             </Button>
             <Button 
               variant="outline" 
               onClick={handleContinueToObservation}
-              className="w-full md:w-auto md:order-2"
+              className="md:order-2"
             >
               Adicionar Observação
             </Button>
             <Button 
               onClick={handleAddWithExtras}
-              className="w-full md:w-auto md:order-3 bg-primary hover:bg-primary/90"
+              className="md:order-3 bg-primary hover:bg-primary/90"
             >
               Adicionar ao pedido
             </Button>
@@ -713,7 +713,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
 
   const ObservationModal = () => {
     const [localObservation, setLocalObservation] = useState("");
-      
+    
     React.useEffect(() => {
       if (showObservationModal) {
         setLocalObservation(observation);
@@ -726,7 +726,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
 
     const handleAddWithObservation = () => {
       setObservation(localObservation);
-        
+      
       if (selectedProduct) {
         addProductToOrder(selectedProduct, localObservation, selectedExtras)
           .then(() => {
@@ -761,16 +761,16 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               <X className="h-4 w-4" />
             </Button>
           </div>
-            
+          
           <div className="text-sm text-gray-500 mb-3">
             Adicione uma observação para este produto
           </div>
-            
+          
           <div className="space-y-3">
             <div className="bg-gray-50 p-3 rounded-md">
               <p className="text-base md:text-lg font-medium">{selectedProduct?.name}</p>
               <p className="text-sm text-gray-500">Preço: R$ {selectedProduct?.price.toFixed(2).replace('.', ',')}</p>
-                
+              
               {selectedExtras.length > 0 && (
                 <div className="mt-2">
                   <p className="text-sm font-medium">Adicionais selecionados:</p>
@@ -784,7 +784,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                 </div>
               )}
             </div>
-              
+            
             <div className="space-y-2">
               <label htmlFor="observation" className="text-sm font-medium">
                 Observação para o preparo:
@@ -799,18 +799,18 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               />
             </div>
           </div>
-            
+          
           <div className="flex flex-col md:flex-row md:justify-end gap-2 mt-4">
             <Button 
               variant="outline" 
               onClick={handleCloseModal}
-              className="w-full md:w-auto md:order-1"
+              className="md:order-1"
             >
               Cancelar
             </Button>
             <Button 
               onClick={handleAddWithObservation}
-              className="w-full md:w-auto md:order-2"
+              className="md:order-2"
             >
               Adicionar ao pedido
             </Button>
@@ -827,29 +827,372 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
           <Table>
             <TableHeader className="sticky top-0 bg-gray-100">
               <TableRow>
-                <TableHead className="w-24">
-                  {/* Table content would go here */}
-                </TableHead>
+                <TableHead className="w-24">Categoria</TableHead>
+                <TableHead className="w-20">Código</TableHead>
+                <TableHead>Nome do Produto</TableHead>
+                <TableHead className="w-28">Preço de Venda</TableHead>
+                <TableHead className="w-20 text-center">Adicionar</TableHead>
+                <TableHead className="w-32 text-center">Opções</TableHead>
               </TableRow>
             </TableHeader>
+            <TableBody>
+              {filteredProducts.map((product) => {
+                const category = categoriesToUse.find(c => c.id === product.category_id);
+                return (
+                  <TableRow key={product.id} className="hover:bg-gray-50">
+                    <TableCell className="py-1">{category?.name.split(' ')[0]}</TableCell>
+                    <TableCell className="py-1">{product.id}</TableCell>
+                    <TableCell className="py-1">
+                      {product.name}
+                      {category?.has_extras && (
+                        <span className="ml-1 text-xs bg-blue-50 text-blue-800 px-1 rounded">+Adicionais</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="py-1 text-right font-semibold">{product.price.toFixed(2).replace('.', ',')}</TableCell>
+                    <TableCell className="py-1 text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mx-auto"
+                        onClick={() => handleAddProduct(product.id, true)}
+                      >
+                        <Plus className="h-5 w-5" />
+                      </Button>
+                    </TableCell>
+                    <TableCell className="py-1 text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="mx-auto h-7 w-7 rounded-full text-gray-500 hover:text-gray-800"
+                        onClick={() => handleAddProduct(product.id, true)}
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
           </Table>
         </div>
       );
     }
-    
+
     return (
-      <div>
-        {/* ProductsView content would go here */}
+      <div className="overflow-y-auto flex-1 p-4">
+        {isLoadingProducts ? (
+          <div className="flex justify-center items-center h-full">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {activeCategory !== "todas" ? (
+              <CategoryProductGroup
+                category={categoriesToUse.find(c => c.id === activeCategory)}
+                products={filteredProducts}
+                onAddProduct={handleAddProduct}
+              />
+            ) : (
+              Object.entries(productsByCategory).map(([categoryId, products]) => {
+                const category = categoriesToUse.find(c => c.id === categoryId);
+                return (
+                  <CategoryProductGroup
+                    key={categoryId}
+                    category={category}
+                    products={products}
+                    onAddProduct={handleAddProduct}
+                  />
+                );
+              })
+            )}
+
+            {filteredProducts.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                Nenhum produto encontrado para esta categoria.
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
 
-  return (
+  const CategoryProductGroup = ({ category, products, onAddProduct }: { 
+    category?: ProductCategory; 
+    products: Product[];
+    onAddProduct: (id: string, withOptions?: boolean) => void;
+  }) => {
+    if (!category) return null;
+    
+    return (
+      <div className="mb-6">
+        <div className={`${category.color || 'bg-gray-200'} ${category.textColor || 'text-gray-800'} px-4 py-2 rounded-lg mb-3`}>
+          <h3 className="font-bold">
+            {category.name}
+            {category.has_extras && (
+              <span className="ml-2 text-xs bg-white text-blue-800 px-2 py-0.5 rounded">Permite adicionais</span>
+            )}
+          </h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {products.map((product) => (
+            <div key={product.id} className="border rounded-lg bg-white shadow-sm p-3">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h4 className="font-medium">
+                    {product.name}
+                    {category.has_extras && (
+                      <span className="ml-1 text-xs bg-blue-50 text-blue-800 px-1 rounded">+Adicionais</span>
+                    )}
+                  </h4>
+                  {product.description && (
+                    <p className="text-sm text-gray-500 line-clamp-1">{product.description}</p>
+                  )}
+                  <p className="text-lg font-bold mt-1">R$ {product.price.toFixed(2).replace('.', ',')}</p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full bg-gray-100"
+                    onClick={() => onAddProduct(product.id, true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full bg-gray-100"
+                    onClick={() => onAddProduct(product.id, true)}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const Content = () => (
     <>
-      <ExtrasModal />
+      {loading ? (
+        <div className="flex justify-center items-center h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+        </div>
+      ) : currentStep === "order" ? (
+        <div className="flex flex-col h-full">
+          <div className={`${isTableBlocked ? "bg-red-100" : "bg-gray-100"} p-4`}>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
+                <div className={`text-5xl font-bold ${isTableBlocked ? "text-red-700" : "text-green-700"}`}>
+                  {table?.number.toString().padStart(2, '0')}
+                </div>
+                <div className="ml-4">
+                  <div className="text-lg">
+                    {orderId ? `Pedido #${orderId.substring(0, 8)}` : "Novo Pedido"}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {currentOrder?.created_at 
+                      ? `Iniciado em ${new Date(currentOrder.created_at).toLocaleDateString()} às ${new Date(currentOrder.created_at).toLocaleTimeString().substring(0, 5)}`
+                      : `${new Date().toLocaleDateString()} às ${new Date().toLocaleTimeString().substring(0, 5)}`
+                    }
+                  </div>
+                  {isTableBlocked && (
+                    <div className="text-sm font-semibold text-red-600 mt-1">
+                      MESA BLOQUEADA PARA FECHAMENTO
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Button
+                size="lg"
+                className={`${isTableBlocked ? "bg-gray-500 hover:bg-gray-600" : "bg-green-600 hover:bg-green-700"}`}
+                onClick={() => setCurrentStep("products")}
+                disabled={isTableBlocked}
+              >
+                <ShoppingCart className="mr-2 h-5 w-5" /> Produtos
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+            <div className="md:col-span-1 space-y-4">
+              <div>
+                <h3 className="font-bold text-xl mb-2">Nome do Cliente</h3>
+                <Input
+                  placeholder="Nome do cliente..."
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full"
+                  disabled={isTableBlocked}
+                />
+              </div>
+
+              <div>
+                <h3 className="font-bold text-xl mb-2">Informações do Pedido</h3>
+                <div className="bg-gray-50 p-4 rounded border">
+                  <div className="flex justify-between mb-2">
+                    <span>Código Personalizado:</span>
+                    <span className="font-semibold">
+                      {orderId ? orderId.substring(0, 5) : Math.floor(10000 + Math.random() * 90000)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-4">
+                    <input 
+                      type="checkbox" 
+                      id="blockOrder" 
+                      checked={isTableBlocked}
+                      onChange={handleToggleBlockTable}
+                    />
+                    <label htmlFor="blockOrder" className={isTableBlocked ? "text-red-600 font-semibold" : ""}>
+                      Bloquear Pedido para Fechamento (F8)
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <div className="bg-white border rounded-md">
+                <div className="p-3 border-b bg-gray-50 flex justify-between items-center">
+                  <h3 className="font-semibold">Itens do Pedido ({orderItems.length})</h3>
+                  <div className="flex items-center">
+                    <input type="checkbox" id="completeView" className="mr-2" />
+                    <label htmlFor="completeView">Exibição Completa</label>
+                  </div>
+                </div>
+
+                <div className="overflow-y-auto" style={{ maxHeight: "300px" }}>
+                  {orderItems.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">
+                      Nenhum produto adicionado.
+                      <Button
+                        variant="outline"
+                        className="mx-auto mt-2 block"
+                        onClick={() => setCurrentStep("products")}
+                        disabled={isTableBlocked}
+                      >
+                        Adicionar produtos
+                      </Button>
+                    </div>
+                  ) : (
+                    orderItems.map((item, index) => (
+                      <OrderProduct
+                        key={`${item.id || item.product_id}-${index}-${item.observation || "no-obs"}`}
+                        item={item}
+                        onChangeQuantity={(newQuantity) => !isTableBlocked && item.id && handleChangeQuantity(item.id, newQuantity)}
+                        onRemove={() => !isTableBlocked && item.id && handleRemoveProduct(item.id)}
+                        disabled={isTableBlocked}
+                      />
+                    ))
+                  )}
+                </div>
+
+                <div className="p-4 space-y-2 bg-gray-50">
+                  <div className="flex justify-between font-semibold">
+                    <span>SUBTOTAL:</span>
+                    <span>{subtotal.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>(+) SERVIÇO:</span>
+                    <span>{serviceFee.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg border-t pt-2">
+                    <span>TOTAL:</span>
+                    <span>{total.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-auto border-t p-4 flex justify-between">
+            <Button variant="outline" onClick={onClose}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar (ESC)
+            </Button>
+
+            <div className="flex gap-2">
+              <Button variant="outline">
+                <Printer className="mr-2 h-4 w-4" /> Imprimir (F9)
+              </Button>
+              <Button 
+                className={`${isTableBlocked ? "bg-red-800 hover:bg-red-900" : "bg-gray-800 hover:bg-gray-900"}`}
+              >
+                <CreditCard className="mr-2 h-4 w-4" /> PAGAMENTO (F5)
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col h-full">
+          <div className="bg-gray-100 p-4 flex items-center justify-between border-b">
+            <Button variant="outline" onClick={() => setCurrentStep("order")}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para pedido
+            </Button>
+            <div className="text-lg font-bold">Localizar Produto</div>
+            <div className="flex items-center gap-2 w-1/3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Pesquisar..."
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex h-[calc(100vh-200px)] overflow-hidden">
+            <div className="w-64 border-r overflow-y-auto">
+              {categoriesToUse.map((category) => (
+                <div
+                  key={category.id}
+                  className={`${category.color || 'bg-gray-200'} ${category.textColor || 'text-gray-800'} border-b border-gray-300 cursor-pointer hover:opacity-90 transition-colors`}
+                  onClick={() => setActiveCategory(category.id)}
+                >
+                  <div className={`p-4 flex items-center ${activeCategory === category.id ? 'font-bold' : ''}`}>
+                    <div className="mr-2">
+                      {category.id === "todas" ? "•" : category.has_extras ? "+" : ""}
+                    </div>
+                    <div>{category.name}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <ProductsView />
+          </div>
+
+          <div className="mt-auto border-t p-4 bg-gray-50">
+            <Button
+              className="w-full bg-green-600 hover:bg-green-700"
+              onClick={() => setCurrentStep("order")}
+            >
+              Confirmar seleção ({orderItems.length} itens)
+            </Button>
+          </div>
+        </div>
+      )}
+
       <ObservationModal />
-      {/* Rest of the component UI */}
+      <ExtrasModal />
     </>
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[90%] lg:max-w-[80%] max-h-[90vh] overflow-y-auto p-0">
+        <DialogTitle className="sr-only">Pedido da Mesa {table?.number}</DialogTitle>
+        <DialogDescription className="sr-only">
+          Gerenciamento de pedidos para a mesa {table ? table.number.toString() : ''}
+        </DialogDescription>
+        {Content()}
+      </DialogContent>
+    </Dialog>
   );
 };
 
