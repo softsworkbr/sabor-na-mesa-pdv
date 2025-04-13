@@ -1043,44 +1043,45 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         </div>
       ) : currentStep === "order" ? (
         <div className="flex flex-col h-full">
-          <div className={`${isTableBlocked ? "bg-red-100" : "bg-gray-100"} p-4`}>
+          <div className={`${isTableBlocked ? "bg-red-100" : "bg-gray-100"} p-2 md:p-4`}>
             <div className="flex justify-between items-center">
               <div className="flex items-center">
-                <div className={`text-5xl font-bold ${isTableBlocked ? "text-red-700" : "text-green-700"}`}>
+                <div className={`text-3xl md:text-5xl font-bold ${isTableBlocked ? "text-red-700" : "text-green-700"}`}>
                   {table?.number.toString().padStart(2, '0')}
                 </div>
-                <div className="ml-4">
-                  <div className="text-lg">
-                    {orderId ? `Pedido #${orderId.substring(0, 8)}` : "Novo Pedido"}
+                <div className="ml-2 md:ml-4">
+                  <div className="text-sm md:text-lg">
+                    {orderId ? `Pedido #${orderId.substring(0, 6)}` : "Novo Pedido"}
                   </div>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-xs md:text-sm text-gray-500">
                     {currentOrder?.created_at 
                       ? `Iniciado em ${new Date(currentOrder.created_at).toLocaleDateString()} às ${new Date(currentOrder.created_at).toLocaleTimeString().substring(0, 5)}`
                       : `${new Date().toLocaleDateString()} às ${new Date().toLocaleTimeString().substring(0, 5)}`
                     }
                   </div>
                   {isTableBlocked && (
-                    <div className="text-sm font-semibold text-red-600 mt-1">
-                      MESA BLOQUEADA PARA FECHAMENTO
+                    <div className="text-xs md:text-sm font-semibold text-red-600 mt-1">
+                      {isSmallMobile ? "MESA BLOQUEADA" : "MESA BLOQUEADA PARA FECHAMENTO"}
                     </div>
                   )}
                 </div>
               </div>
               <Button
-                size="lg"
-                className={`${isTableBlocked ? "bg-gray-500 hover:bg-gray-600" : "bg-green-600 hover:bg-green-700"}`}
+                size={isMobile ? "sm" : "lg"}
+                className={`${isTableBlocked ? "bg-gray-500 hover:bg-gray-600" : "bg-green-600 hover:bg-green-700"} text-xs md:text-base`}
                 onClick={() => setCurrentStep("products")}
                 disabled={isTableBlocked}
               >
-                <ShoppingCart className="mr-2 h-5 w-5" /> Produtos
+                <ShoppingCart className="mr-1 md:mr-2 h-4 w-4" /> 
+                {!isSmallMobile && "Produtos"}
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-            <div className="md:col-span-1 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 p-2 md:p-4">
+            <div className="md:col-span-1 space-y-3 md:space-y-4">
               <div>
-                <h3 className="font-bold text-xl mb-2">Nome do Cliente</h3>
+                <h3 className="font-bold text-lg md:text-xl mb-1 md:mb-2">Nome do Cliente</h3>
                 <Input
                   placeholder="Nome do cliente..."
                   value={customerName}
@@ -1091,23 +1092,26 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               </div>
 
               <div>
-                <h3 className="font-bold text-xl mb-2">Informações do Pedido</h3>
-                <div className="bg-gray-50 p-4 rounded border">
+                <h3 className="font-bold text-lg md:text-xl mb-1 md:mb-2">Informações</h3>
+                <div className="bg-gray-50 p-3 md:p-4 rounded border">
                   <div className="flex justify-between mb-2">
-                    <span>Código Personalizado:</span>
+                    <span>Código:</span>
                     <span className="font-semibold">
                       {orderId ? orderId.substring(0, 5) : Math.floor(10000 + Math.random() * 90000)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 mt-4">
+                  <div className="flex items-center gap-2 mt-3 md:mt-4">
                     <input 
                       type="checkbox" 
                       id="blockOrder" 
                       checked={isTableBlocked}
                       onChange={handleToggleBlockTable}
                     />
-                    <label htmlFor="blockOrder" className={isTableBlocked ? "text-red-600 font-semibold" : ""}>
-                      Bloquear Pedido para Fechamento (F8)
+                    <label 
+                      htmlFor="blockOrder" 
+                      className={`${isTableBlocked ? "text-red-600 font-semibold" : ""} text-sm md:text-base`}
+                    >
+                      {isSmallMobile ? "Bloquear Mesa" : "Bloquear Pedido para Fechamento (F8)"}
                     </label>
                   </div>
                 </div>
@@ -1115,22 +1119,26 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
             </div>
 
             <div className="md:col-span-2">
-              <div className="bg-white border rounded-md">
-                <div className="p-3 border-b bg-gray-50 flex justify-between items-center">
-                  <h3 className="font-semibold">Itens do Pedido ({orderItems.length})</h3>
+              <div className="bg-white border rounded-md h-full flex flex-col">
+                <div className="p-2 md:p-3 border-b bg-gray-50 flex justify-between items-center sticky top-0">
+                  <h3 className="font-semibold text-sm md:text-base">Itens do Pedido ({orderItems.length})</h3>
                   <div className="flex items-center">
-                    <input type="checkbox" id="completeView" className="mr-2" />
-                    <label htmlFor="completeView">Exibição Completa</label>
+                    {!isSmallMobile && (
+                      <>
+                        <input type="checkbox" id="completeView" className="mr-2" />
+                        <label htmlFor="completeView" className="text-sm">Exibição Completa</label>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                <div className="overflow-y-auto" style={{ maxHeight: "300px" }}>
+                <div className="overflow-y-auto flex-grow" style={{ maxHeight: isMobile ? "300px" : "400px" }}>
                   {orderItems.length === 0 ? (
                     <div className="p-4 text-center text-gray-500">
-                      Nenhum produto adicionado.
+                      <div className="text-sm md:text-base">Nenhum produto adicionado.</div>
                       <Button
                         variant="outline"
-                        className="mx-auto mt-2 block"
+                        className="mx-auto mt-2 block text-xs md:text-sm"
                         onClick={() => setCurrentStep("products")}
                         disabled={isTableBlocked}
                       >
@@ -1138,28 +1146,31 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                       </Button>
                     </div>
                   ) : (
-                    orderItems.map((item, index) => (
-                      <OrderProduct
-                        key={`${item.id || item.product_id}-${index}-${item.observation || "no-obs"}`}
-                        item={item}
-                        onChangeQuantity={(newQuantity) => !isTableBlocked && item.id && handleChangeQuantity(item.id, newQuantity)}
-                        onRemove={() => !isTableBlocked && item.id && handleRemoveProduct(item.id)}
-                        disabled={isTableBlocked}
-                      />
-                    ))
+                    <div className={isMobile ? "divide-y" : ""}>
+                      {orderItems.map((item, index) => (
+                        <OrderProduct
+                          key={`${item.id || item.product_id}-${index}-${item.observation || "no-obs"}`}
+                          item={item}
+                          onChangeQuantity={(newQuantity) => !isTableBlocked && item.id && handleChangeQuantity(item.id, newQuantity)}
+                          onRemove={() => !isTableBlocked && item.id && handleRemoveProduct(item.id)}
+                          disabled={isTableBlocked}
+                          isMobile={isMobile}
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                <div className="p-4 space-y-2 bg-gray-50">
+                <div className="p-3 md:p-4 space-y-1 md:space-y-2 bg-gray-50 border-t">
                   <div className="flex justify-between font-semibold">
-                    <span>SUBTOTAL:</span>
-                    <span>{subtotal.toFixed(2).replace('.', ',')}</span>
+                    <span className="text-sm md:text-base">SUBTOTAL:</span>
+                    <span className="text-sm md:text-base">{subtotal.toFixed(2).replace('.', ',')}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-sm md:text-base">
                     <span>(+) SERVIÇO:</span>
                     <span>{serviceFee.toFixed(2).replace('.', ',')}</span>
                   </div>
-                  <div className="flex justify-between font-bold text-lg border-t pt-2">
+                  <div className="flex justify-between font-bold text-base md:text-lg border-t pt-1 md:pt-2 mt-1">
                     <span>TOTAL:</span>
                     <span>{total.toFixed(2).replace('.', ',')}</span>
                   </div>
@@ -1168,19 +1179,32 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
             </div>
           </div>
 
-          <div className="mt-auto border-t p-4 flex justify-between">
-            <Button variant="outline" onClick={onClose}>
-              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar (ESC)
+          <div className="mt-auto border-t p-2 md:p-4 flex flex-col md:flex-row justify-between items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={onClose} 
+              className="w-full md:w-auto text-sm"
+              size={isMobile ? "sm" : "default"}
+            >
+              <ArrowLeft className="mr-1 md:mr-2 h-4 w-4" /> 
+              {isSmallMobile ? "Voltar" : "Voltar (ESC)"}
             </Button>
 
-            <div className="flex gap-2">
-              <Button variant="outline">
-                <Printer className="mr-2 h-4 w-4" /> Imprimir (F9)
+            <div className="flex gap-2 w-full md:w-auto">
+              <Button 
+                variant="outline" 
+                className="text-sm flex-1 md:flex-initial"
+                size={isMobile ? "sm" : "default"}
+              >
+                <Printer className="mr-1 md:mr-2 h-4 w-4" /> 
+                {isSmallMobile ? "Imprimir" : "Imprimir (F9)"}
               </Button>
               <Button 
-                className={`${isTableBlocked ? "bg-red-800 hover:bg-red-900" : "bg-gray-800 hover:bg-gray-900"}`}
+                className={`${isTableBlocked ? "bg-red-800 hover:bg-red-900" : "bg-gray-800 hover:bg-gray-900"} text-sm flex-1 md:flex-initial`}
+                size={isMobile ? "sm" : "default"}
               >
-                <CreditCard className="mr-2 h-4 w-4" /> PAGAMENTO (F5)
+                <CreditCard className="mr-1 md:mr-2 h-4 w-4" /> 
+                {isSmallMobile ? "Pagamento" : "PAGAMENTO (F5)"}
               </Button>
             </div>
           </div>
