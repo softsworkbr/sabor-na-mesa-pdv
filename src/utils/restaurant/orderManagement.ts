@@ -170,9 +170,17 @@ export const getOrders = async (status?: string): Promise<Order[]> => {
  */
 export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderItem> => {
   try {
+    // Ensure observation is properly passed to the database
     const { data: orderItem, error } = await supabase
       .from('order_items')
-      .insert(data)
+      .insert({
+        order_id: data.order_id,
+        product_id: data.product_id,
+        name: data.name,
+        price: data.price,
+        quantity: data.quantity,
+        observation: data.observation || null // Explicitly handle null for empty observation
+      })
       .select()
       .single();
 
@@ -193,9 +201,17 @@ export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderIte
  */
 export const updateOrderItem = async (itemId: string, data: UpdateOrderItemProps): Promise<OrderItem> => {
   try {
+    // Ensure observation is properly handled during updates
+    const updateData: UpdateOrderItemProps = { ...data };
+    
+    // If observation is empty string, convert to null for database
+    if (updateData.observation === '') {
+      updateData.observation = null;
+    }
+    
     const { data: updatedItem, error } = await supabase
       .from('order_items')
-      .update(data)
+      .update(updateData)
       .eq('id', itemId)
       .select()
       .single();

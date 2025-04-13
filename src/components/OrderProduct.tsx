@@ -8,7 +8,7 @@ interface OrderProductProps {
   item: OrderItem;
   onChangeQuantity: (newQuantity: number) => void;
   onRemove: () => void;
-  disabled?: boolean; // Added disabled prop
+  disabled?: boolean;
 }
 
 const OrderProduct = ({ item, onChangeQuantity, onRemove, disabled = false }: OrderProductProps) => {
@@ -21,7 +21,7 @@ const OrderProduct = ({ item, onChangeQuantity, onRemove, disabled = false }: Or
       <div className="flex-grow">
         <div className="font-medium">{item.name}</div>
         {item.observation && (
-          <div className="text-sm text-gray-500 italic">
+          <div className="text-sm text-gray-500 italic bg-gray-50 p-1 rounded mt-1">
             {item.observation}
           </div>
         )}
