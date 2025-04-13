@@ -23,10 +23,13 @@ interface AuthContextProps {
   signUp: (email: string, password: string, userData: { username?: string, full_name?: string }) => Promise<void>;
   signOut: () => Promise<void>;
   setCurrentRestaurant: (restaurant: Restaurant) => void;
-  refreshRestaurants: () => Promise<void>; // Nova função para recarregar restaurantes
+  refreshRestaurants: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
+
+// Local storage key for saving the last used restaurant
+const LAST_RESTAURANT_KEY = 'lastUsedRestaurant';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
@@ -34,6 +37,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [currentRestaurant, setCurrentRestaurant] = useState<Restaurant | null>(null);
+
+  // Function to save the current restaurant to localStorage
+  const saveCurrentRestaurantToStorage = (restaurant: Restaurant | null) => {
+    if (restaurant) {
+      localStorage.setItem(LAST_RESTAURANT_KEY, JSON.stringify(restaurant));
+    }
+  };
+
+  // Custom setter for currentRestaurant that also saves to localStorage
+  const handleSetCurrentRestaurant = (restaurant: Restaurant | null) => {
+    setCurrentRestaurant(restaurant);
+    saveCurrentRestaurantToStorage(restaurant);
+  };
 
   // Função para buscar restaurantes do usuário
   const fetchUserRestaurants = async () => {
@@ -85,22 +101,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setRestaurants(userRestaurants);
         
+        // Try to get the last used restaurant from localStorage
+        try {
+          const lastUsedRestaurantString = localStorage.getItem(LAST_RESTAURANT_KEY);
+          if (lastUsedRestaurantString) {
+            const lastUsedRestaurant = JSON.parse(lastUsedRestaurantString);
+            
+            // Check if the last used restaurant is still in the user's list
+            const restaurantStillExists = userRestaurants.find(r => r.id === lastUsedRestaurant.id);
+            
+            if (restaurantStillExists) {
+              // Use the updated restaurant data
+              handleSetCurrentRestaurant(restaurantStillExists);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Error parsing last used restaurant:', e);
+          // Continue with normal flow if there's an error with localStorage
+        }
+        
         // Atualizar restaurante atual apenas se ele não existir mais na lista
         if (currentRestaurant) {
           const stillExists = userRestaurants.find(r => r.id === currentRestaurant.id);
           if (!stillExists && userRestaurants.length > 0) {
-            setCurrentRestaurant(userRestaurants[0]);
+            handleSetCurrentRestaurant(userRestaurants[0]);
           } else if (stillExists) {
             // Atualiza o restaurante atual com os dados mais recentes
             const updatedCurrentRestaurant = userRestaurants.find(r => r.id === currentRestaurant.id);
             if (updatedCurrentRestaurant) {
-              setCurrentRestaurant(updatedCurrentRestaurant);
+              handleSetCurrentRestaurant(updatedCurrentRestaurant);
             }
           }
         } 
         // Set default restaurant if none is selected
         else if (userRestaurants.length > 0) {
-          setCurrentRestaurant(userRestaurants[0]);
+          handleSetCurrentRestaurant(userRestaurants[0]);
         }
       } else {
         // For demo purposes, use the mock data when the user has no restaurants
@@ -113,7 +149,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRestaurants(mockRestaurants);
         
         if (!currentRestaurant) {
-          setCurrentRestaurant(mockRestaurants[0]);
+          // Try to get the last used restaurant from localStorage
+          try {
+            const lastUsedRestaurantString = localStorage.getItem(LAST_RESTAURANT_KEY);
+            if (lastUsedRestaurantString) {
+              const lastUsedRestaurant = JSON.parse(lastUsedRestaurantString);
+              // Check if the mocked restaurant with this ID exists
+              const mockedRestaurant = mockRestaurants.find(r => r.id === lastUsedRestaurant.id);
+              
+              if (mockedRestaurant) {
+                handleSetCurrentRestaurant(mockedRestaurant);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing last used restaurant:', e);
+          }
+          
+          // Default to first restaurant if no last used restaurant exists
+          handleSetCurrentRestaurant(mockRestaurants[0]);
         }
       }
     } catch (err) {
@@ -194,7 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      setCurrentRestaurant(null);
+      handleSetCurrentRestaurant(null);
       toast.success("Logout realizado com sucesso!");
     } catch (error: any) {
       toast.error(`Erro ao fazer logout: ${error.message}`);
@@ -212,8 +266,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signOut, 
       restaurants,
       currentRestaurant,
-      setCurrentRestaurant,
-      refreshRestaurants  // Adicionando a nova função ao contexto
+      setCurrentRestaurant: handleSetCurrentRestaurant,
+      refreshRestaurants
     }}>
       {children}
     </AuthContext.Provider>

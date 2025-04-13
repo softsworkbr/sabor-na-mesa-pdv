@@ -41,6 +41,13 @@ const RestaurantSwitcher = () => {
     setIsOpen(false);
   };
 
+  const handleSelectRestaurant = (restaurant: typeof currentRestaurant) => {
+    if (restaurant) {
+      setCurrentRestaurant(restaurant);
+      setIsOpen(false);
+    }
+  };
+
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
@@ -64,10 +71,7 @@ const RestaurantSwitcher = () => {
         {restaurants.map((restaurant) => (
           <DropdownMenuItem
             key={restaurant.id}
-            onClick={() => {
-              setCurrentRestaurant(restaurant);
-              setIsOpen(false);
-            }}
+            onClick={() => handleSelectRestaurant(restaurant)}
             className={cn(
               "flex items-center gap-2 p-2",
               currentRestaurant?.id === restaurant.id && "bg-accent"
