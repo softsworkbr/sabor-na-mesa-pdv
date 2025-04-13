@@ -1,8 +1,8 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Minus, Plus, Trash2, MoreVertical, Printer, FileText } from "lucide-react";
-import { OrderItem } from "@/utils/restaurant";
+import { Minus, Plus, Trash2, MoreVertical, FileText } from "lucide-react";
+import { OrderItem, ProductExtra } from "@/utils/restaurant";
 
 interface OrderProductProps {
   item: OrderItem;
@@ -23,6 +23,16 @@ const OrderProduct = ({ item, onChangeQuantity, onRemove, disabled = false }: Or
         {item.observation && (
           <div className="text-sm text-gray-500 italic bg-gray-50 p-1 rounded mt-1">
             {item.observation}
+          </div>
+        )}
+        
+        {item.extras && item.extras.length > 0 && (
+          <div className="mt-1">
+            {item.extras.map((extra, index) => (
+              <div key={extra.id || index} className="text-xs bg-blue-50 text-blue-800 inline-block mr-1 px-2 py-0.5 rounded">
+                +{extra.name} ({extra.price.toFixed(2).replace('.', ',')})
+              </div>
+            ))}
           </div>
         )}
       </div>
