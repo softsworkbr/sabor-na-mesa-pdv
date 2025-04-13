@@ -30,7 +30,9 @@ import {
   MoreHorizontal,
   FileText,
   Loader2,
-  Tag
+  Tag,
+  Check,
+  X
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import OrderProduct from "./OrderProduct";
@@ -307,13 +309,23 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const handleAddProductWithObservation = async (productObservation?: string) => {
     if (!selectedProduct) return;
     
+    // Garantir que temos uma cópia dos extras selecionados
+    const extrasToSave = [...selectedExtras];
+    
     console.log("Adding product with observation:", productObservation || observation);
-    await addProductToOrder(selectedProduct, productObservation || observation, selectedExtras);
-    setShowObservationModal(false);
-    setShowExtrasModal(false);
-    setSelectedProduct(null);
-    setObservation("");
-    setSelectedExtras([]);
+    console.log("Adding product with extras:", extrasToSave);
+    
+    try {
+      await addProductToOrder(selectedProduct, productObservation || observation, extrasToSave);
+      setShowObservationModal(false);
+      setShowExtrasModal(false);
+      setSelectedProduct(null);
+      setObservation("");
+      setSelectedExtras([]);
+    } catch (error) {
+      console.error("Error adding product with extras:", error);
+      toast.error("Erro ao adicionar produto com adicionais");
+    }
   };
 
   const addProductToOrder = async (product: Product, productObservation?: string, extras: ProductExtra[] = []) => {
@@ -542,7 +554,13 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   }, {} as Record<string, Product[]>);
 
   const ExtrasModal = () => {
-    const [localObservation, setLocalObservation] = useState("");
+    const [localExtras, setLocalExtras] = useState<ProductExtra[]>([]);
+    
+    React.useEffect(() => {
+      if (showExtrasModal) {
+        setLocalExtras(selectedExtras);
+      }
+    }, [showExtrasModal, selectedExtras]);
     
     const handleCloseExtrasModal = () => {
       setShowExtrasModal(false);
@@ -550,72 +568,120 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     };
     
     const handleContinueToObservation = () => {
+      // Atualizar o estado global com uma cópia dos extras locais
+      setSelectedExtras([...localExtras]);
       setShowExtrasModal(false);
       setShowObservationModal(true);
     };
     
     const handleAddWithExtras = () => {
-      handleAddProductWithObservation("");
+      // Atualizar o estado global com uma cópia dos extras locais
+      const extrasToSave = [...localExtras];
+      setSelectedExtras(extrasToSave);
+      
+      // Chamar diretamente com os extras locais para evitar problemas de timing
+      if (selectedProduct) {
+        addProductToOrder(selectedProduct, "", extrasToSave)
+          .then(() => {
+            setShowExtrasModal(false);
+            setSelectedProduct(null);
+            setSelectedExtras([]);
+          })
+          .catch(error => {
+            console.error("Error adding product with extras:", error);
+            toast.error("Erro ao adicionar produto com adicionais");
+          });
+      }
+    };
+    
+    const toggleExtra = (extra: ProductExtra) => {
+      setLocalExtras(prevExtras => {
+        const isSelected = prevExtras.some(e => e.id === extra.id);
+        
+        if (isSelected) {
+          return prevExtras.filter(e => e.id !== extra.id);
+        } else {
+          return [...prevExtras, extra];
+        }
+      });
     };
     
     const calculateTotalPrice = () => {
       if (!selectedProduct) return 0;
       
       let total = selectedProduct.price;
-      selectedExtras.forEach(extra => {
+      localExtras.forEach(extra => {
         total += extra.price;
       });
       
       return total;
     };
 
-    // Memoize the checkbox rendering to prevent unnecessary re-renders
-    const renderExtras = React.useMemo(() => {
-      return availableExtras.map(extra => {
-        const isSelected = selectedExtras.some(e => e.id === extra.id);
-        return (
-          <div key={extra.id} className="flex items-center justify-between border-b pb-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id={`extra-${extra.id}`}
-                checked={isSelected}
-                onCheckedChange={() => handleToggleExtra(extra)}
-              />
-              <label htmlFor={`extra-${extra.id}`} className="text-sm font-medium">
-                {extra.name}
-              </label>
-            </div>
-            <span className="text-sm font-medium">+ R$ {extra.price.toFixed(2).replace('.', ',')}</span>
-          </div>
-        );
-      });
-    }, [availableExtras, selectedExtras]);
-
     if (!showExtrasModal) return null;
     
     return (
-      <Dialog open={showExtrasModal} onOpenChange={setShowExtrasModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Selecionar Adicionais</DialogTitle>
-            <DialogDescription className="text-sm text-gray-500">
-              Adicione adicionais para personalizar este produto
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <p className="text-lg font-medium">{selectedProduct?.name}</p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div 
+          className="bg-white rounded-lg shadow-lg w-full max-w-md mx-4 p-4 md:p-6 max-h-[90vh] overflow-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg md:text-xl font-bold">Selecionar Adicionais</h2>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-full" 
+              onClick={handleCloseExtrasModal}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="text-sm text-gray-500 mb-3">
+            Adicione adicionais para personalizar este produto
+          </div>
+          
+          <div className="space-y-3">
+            <div className="bg-gray-50 p-3 rounded-md">
+              <p className="text-base md:text-lg font-medium">{selectedProduct?.name}</p>
               <p className="text-sm text-gray-500">Preço base: R$ {selectedProduct?.price.toFixed(2).replace('.', ',')}</p>
             </div>
             
             <div className="border rounded-md p-3">
-              <div className="font-medium flex items-center mb-3">
+              <div className="font-medium flex items-center mb-2 text-sm md:text-base">
                 <Tag className="h-4 w-4 mr-2" />
                 <span>Adicionais disponíveis</span>
               </div>
               
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {renderExtras}
+              <div className="space-y-2 max-h-[35vh] md:max-h-60 overflow-y-auto pr-1">
+                {availableExtras.map(extra => {
+                  const isSelected = localExtras.some(e => e.id === extra.id);
+                  return (
+                    <div 
+                      key={extra.id} 
+                      className="flex items-center justify-between border-b pb-2"
+                    >
+                      <div 
+                        className="flex items-center space-x-2 cursor-pointer flex-1"
+                        onClick={() => toggleExtra(extra)}
+                      >
+                        <div 
+                          className={`h-5 w-5 rounded-sm border flex-shrink-0 ${
+                            isSelected 
+                              ? 'bg-primary border-primary text-white flex items-center justify-center' 
+                              : 'border-gray-300'
+                          }`}
+                        >
+                          {isSelected && <Check className="h-3 w-3" />}
+                        </div>
+                        <span className="text-sm font-medium line-clamp-2">
+                          {extra.name}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium ml-2 whitespace-nowrap">+ R$ {extra.price.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  );
+                })}
               </div>
               
               {availableExtras.length === 0 && (
@@ -631,29 +697,42 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                 <span className="font-bold">R$ {calculateTotalPrice().toFixed(2).replace('.', ',')}</span>
               </div>
               <div className="text-sm text-gray-500 mt-1">
-                {selectedExtras.length} adicional(is) selecionado(s)
+                {localExtras.length} adicional(is) selecionado(s)
               </div>
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={handleCloseExtrasModal}>
+          
+          <div className="flex flex-col md:flex-row md:justify-end gap-2 mt-4">
+            <Button 
+              variant="outline" 
+              onClick={handleCloseExtrasModal}
+              className="md:order-1"
+            >
               Cancelar
             </Button>
-            <Button variant="outline" onClick={handleContinueToObservation}>
+            <Button 
+              variant="outline" 
+              onClick={handleContinueToObservation}
+              className="md:order-2"
+            >
               Adicionar Observação
             </Button>
-            <Button onClick={handleAddWithExtras}>
+            <Button 
+              onClick={handleAddWithExtras}
+              className="md:order-3"
+            >
               Adicionar ao pedido
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
     );
   };
 
   const ObservationModal = () => {
-    const [localObservation, setLocalObservation] = useState(observation);
-
+    const [localObservation, setLocalObservation] = useState("");
+    
+    // Sincronizar estado local com estado global quando o modal abre
     React.useEffect(() => {
       if (showObservationModal) {
         setLocalObservation(observation);
@@ -665,25 +744,52 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     };
 
     const handleAddWithObservation = () => {
-      console.log("Setting observation from modal:", localObservation);
+      // Atualizar o estado global
       setObservation(localObservation);
-      handleAddProductWithObservation(localObservation);
+      
+      // Chamar diretamente com a observação local para evitar problemas de timing
+      if (selectedProduct) {
+        addProductToOrder(selectedProduct, localObservation, selectedExtras)
+          .then(() => {
+            setShowObservationModal(false);
+            setSelectedProduct(null);
+            setObservation("");
+            setSelectedExtras([]);
+          })
+          .catch(error => {
+            console.error("Error adding product with observation:", error);
+            toast.error("Erro ao adicionar produto com observação");
+          });
+      }
     };
 
     if (!showObservationModal) return null;
 
     return (
-      <Dialog open={showObservationModal} onOpenChange={setShowObservationModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Adicionar Observação</DialogTitle>
-            <DialogDescription className="text-sm text-gray-500">
-              Adicione uma observação para este produto
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <p className="text-lg font-medium">{selectedProduct?.name}</p>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div 
+          className="bg-white rounded-lg shadow-lg w-full max-w-md mx-4 p-4 md:p-6 max-h-[90vh] overflow-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg md:text-xl font-bold">Adicionar Observação</h2>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-full" 
+              onClick={handleCloseModal}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="text-sm text-gray-500 mb-3">
+            Adicione uma observação para este produto
+          </div>
+          
+          <div className="space-y-3">
+            <div className="bg-gray-50 p-3 rounded-md">
+              <p className="text-base md:text-lg font-medium">{selectedProduct?.name}</p>
               <p className="text-sm text-gray-500">Preço: R$ {selectedProduct?.price.toFixed(2).replace('.', ',')}</p>
               
               {selectedExtras.length > 0 && (
@@ -699,6 +805,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                 </div>
               )}
             </div>
+            
             <div className="space-y-2">
               <label htmlFor="observation" className="text-sm font-medium">
                 Observação para o preparo:
@@ -713,16 +820,24 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={handleCloseModal}>
+          
+          <div className="flex flex-col md:flex-row md:justify-end gap-2 mt-4">
+            <Button 
+              variant="outline" 
+              onClick={handleCloseModal}
+              className="md:order-1"
+            >
               Cancelar
             </Button>
-            <Button onClick={handleAddWithObservation}>
+            <Button 
+              onClick={handleAddWithObservation}
+              className="md:order-2"
+            >
               Adicionar ao pedido
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
     );
   };
 

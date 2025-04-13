@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
@@ -17,10 +16,36 @@ import {
 const parseExtras = (extrasJson: any): ProductExtra[] | null => {
   if (!extrasJson) return null;
   
+  console.log("Parsing extras:", extrasJson, "Type:", typeof extrasJson);
+  
   try {
+    // Se já for um array, retornar diretamente
     if (Array.isArray(extrasJson)) {
+      console.log("Extras is already an array");
       return extrasJson as ProductExtra[];
     }
+    
+    // Se for uma string JSON, tentar fazer o parse
+    if (typeof extrasJson === 'string') {
+      console.log("Extras is a string, trying to parse");
+      try {
+        const parsed = JSON.parse(extrasJson);
+        if (Array.isArray(parsed)) {
+          console.log("Successfully parsed extras string to array");
+          return parsed as ProductExtra[];
+        }
+      } catch (e) {
+        console.error("Failed to parse extras JSON string:", e);
+      }
+    }
+    
+    // Se for um objeto com a estrutura esperada do Supabase
+    if (typeof extrasJson === 'object' && extrasJson !== null) {
+      console.log("Extras is an object, trying to convert");
+      return [extrasJson] as ProductExtra[];
+    }
+    
+    console.log("Could not parse extras, returning null");
     return null;
   } catch (error) {
     console.error("Error parsing extras:", error);
@@ -205,6 +230,7 @@ export const getOrders = async (status?: string): Promise<Order[]> => {
 export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderItem> => {
   try {
     console.log("Adding order item with observation:", data.observation);
+    console.log("Adding order item with extras:", data.extras);
     
     // Prepare data for database insertion
     const insertData: any = {
@@ -217,8 +243,20 @@ export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderIte
     };
     
     // Handle extras field - make sure it's stored as JSON in the database
-    if (data.extras) {
-      insertData.extras = data.extras;
+    if (data.extras && Array.isArray(data.extras) && data.extras.length > 0) {
+      // Garantir que apenas as propriedades necessárias sejam incluídas
+      const cleanExtras = data.extras.map(extra => ({
+        id: extra.id,
+        name: extra.name,
+        price: extra.price
+      }));
+      
+      // Converter para string JSON para garantir compatibilidade
+      insertData.extras = cleanExtras;
+      
+      console.log("Extras being saved:", cleanExtras);
+    } else {
+      insertData.extras = null;
     }
     
     console.log("Insert data being sent to database:", insertData);
@@ -236,8 +274,17 @@ export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderIte
     }
 
     console.log("Successfully added item:", orderItem);
+    
+    // Verificar se os extras foram salvos corretamente
+    if (orderItem && orderItem.extras) {
+      console.log("Extras saved in database:", orderItem.extras);
+    }
+    
     // Convert the returned item with properly typed extras
-    return convertToOrderItem(orderItem);
+    const convertedItem = convertToOrderItem(orderItem);
+    console.log("Converted item with extras:", convertedItem);
+    
+    return convertedItem;
   } catch (error: any) {
     console.error('Error adding order item:', error);
     throw error;
