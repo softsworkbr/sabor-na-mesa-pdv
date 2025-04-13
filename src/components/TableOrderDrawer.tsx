@@ -123,6 +123,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const [realProducts, setRealProducts] = useState<Product[]>([]);
   const [realCategories, setRealCategories] = useState<ProductCategory[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isTableBlocked, setIsTableBlocked] = useState(false);
 
   const isDesktop = useMediaQuery("(min-width: 768px)");
   
@@ -134,6 +135,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
 
   useEffect(() => {
     if (isOpen && table) {
+      setIsTableBlocked(table.status === "blocked");
       loadTableOrder();
     } else {
       resetOrderForm();
@@ -224,6 +226,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     setActiveCategory("todas");
     setSelectedProduct(null);
     setObservation("");
+    setIsTableBlocked(false);
   };
 
   const saveOrder = async () => {
@@ -261,6 +264,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   };
 
   const handleAddProduct = async (productId: string, withObservation: boolean = false) => {
+    if (isTableBlocked) {
+      toast.error("Esta mesa está bloqueada para fechamento. Não é possível adicionar itens.");
+      return;
+    }
+
     const productsToSearch = realProducts.length > 0 ? realProducts : sampleProducts;
     const product = productsToSearch.find(p => p.id === productId);
     if (!product) return;
@@ -276,6 +284,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   };
 
   const addProductToOrder = async (product: Product, productObservation?: string) => {
+    if (isTableBlocked) {
+      toast.error("Esta mesa está bloqueada para fechamento. Não é possível adicionar itens.");
+      return;
+    }
+    
     try {
       let currentOrderId = orderId;
       if (!currentOrderId) {
@@ -373,6 +386,23 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     } catch (error) {
       console.error("Error updating quantity:", error);
       toast.error("Erro ao atualizar quantidade");
+    }
+  };
+
+  const handleToggleBlockTable = async () => {
+    if (!table || !table.id) return;
+
+    try {
+      const newStatus = isTableBlocked ? "active" : "blocked";
+      await updateTable(table.id, { status: newStatus });
+      setIsTableBlocked(!isTableBlocked);
+      
+      toast.success(isTableBlocked 
+        ? "Mesa desbloqueada com sucesso" 
+        : "Mesa bloqueada para fechamento");
+    } catch (error) {
+      console.error("Error toggling table block status:", error);
+      toast.error("Erro ao alterar o status da mesa");
     }
   };
 
@@ -610,10 +640,12 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
         </div>
       ) : currentStep === "order" ? (
         <div className="flex flex-col h-full">
-          <div className="bg-gray-100 p-4">
+          <div className={`${isTableBlocked ? "bg-red-100" : "bg-gray-100"} p-4`}>
             <div className="flex justify-between items-center">
               <div className="flex items-center">
-                <div className="text-5xl font-bold text-green-700">{table?.number.toString().padStart(2, '0')}</div>
+                <div className={`text-5xl font-bold ${isTableBlocked ? "text-red-700" : "text-green-700"}`}>
+                  {table?.number.toString().padStart(2, '0')}
+                </div>
                 <div className="ml-4">
                   <div className="text-lg">
                     {orderId ? `Pedido #${orderId.substring(0, 8)}` : "Novo Pedido"}
@@ -624,12 +656,18 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                       : `${new Date().toLocaleDateString()} às ${new Date().toLocaleTimeString().substring(0, 5)}`
                     }
                   </div>
+                  {isTableBlocked && (
+                    <div className="text-sm font-semibold text-red-600 mt-1">
+                      MESA BLOQUEADA PARA FECHAMENTO
+                    </div>
+                  )}
                 </div>
               </div>
               <Button
                 size="lg"
-                className="bg-green-600 hover:bg-green-700"
+                className={`${isTableBlocked ? "bg-gray-500 hover:bg-gray-600" : "bg-green-600 hover:bg-green-700"}`}
                 onClick={() => setCurrentStep("products")}
+                disabled={isTableBlocked}
               >
                 <ShoppingCart className="mr-2 h-5 w-5" /> Produtos
               </Button>
@@ -645,6 +683,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   className="w-full"
+                  disabled={isTableBlocked}
                 />
               </div>
 
@@ -658,8 +697,15 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-4">
-                    <input type="checkbox" id="blockOrder" />
-                    <label htmlFor="blockOrder">Bloquear Pedido (F8)</label>
+                    <input 
+                      type="checkbox" 
+                      id="blockOrder" 
+                      checked={isTableBlocked}
+                      onChange={handleToggleBlockTable}
+                    />
+                    <label htmlFor="blockOrder" className={isTableBlocked ? "text-red-600 font-semibold" : ""}>
+                      Bloquear Pedido para Fechamento (F8)
+                    </label>
                   </div>
                 </div>
               </div>
@@ -683,6 +729,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                         variant="outline"
                         className="mx-auto mt-2 block"
                         onClick={() => setCurrentStep("products")}
+                        disabled={isTableBlocked}
                       >
                         Adicionar produtos
                       </Button>
@@ -692,8 +739,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                       <OrderProduct
                         key={`${item.id || item.product_id}-${index}-${item.observation || "no-obs"}`}
                         item={item}
-                        onChangeQuantity={(newQuantity) => item.id && handleChangeQuantity(item.id, newQuantity)}
-                        onRemove={() => item.id && handleRemoveProduct(item.id)}
+                        onChangeQuantity={(newQuantity) => !isTableBlocked && item.id && handleChangeQuantity(item.id, newQuantity)}
+                        onRemove={() => !isTableBlocked && item.id && handleRemoveProduct(item.id)}
+                        disabled={isTableBlocked}
                       />
                     ))
                   )}
@@ -726,7 +774,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               <Button variant="outline">
                 <Printer className="mr-2 h-4 w-4" /> Imprimir (F9)
               </Button>
-              <Button className="bg-gray-800 hover:bg-gray-900">
+              <Button 
+                className={`${isTableBlocked ? "bg-red-800 hover:bg-red-900" : "bg-gray-800 hover:bg-gray-900"}`}
+              >
                 <CreditCard className="mr-2 h-4 w-4" /> PAGAMENTO (F5)
               </Button>
             </div>

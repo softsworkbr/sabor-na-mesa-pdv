@@ -26,14 +26,16 @@ const statusColors: Record<TableStatus, string> = {
   free: "bg-gray-400",
   occupied: "bg-amber-500",
   active: "bg-green-600",
-  reserved: "bg-blue-500"
+  reserved: "bg-blue-500",
+  blocked: "bg-red-600"
 };
 
 const statusLabels: Record<TableStatus, string> = {
   free: "Livre",
   occupied: "Ocupada",
   active: "Em Atendimento",
-  reserved: "Reservada"
+  reserved: "Reservada",
+  blocked: "Bloqueada"
 };
 
 const TablesPage = () => {
@@ -149,6 +151,7 @@ const TablesPage = () => {
 
   const activeTablesCount = statusCounts.active || 0;
   const freeTablesCount = statusCounts.free || 0;
+  const blockedTablesCount = statusCounts.blocked || 0;
 
   if (!currentRestaurant) {
     return (
@@ -211,6 +214,12 @@ const TablesPage = () => {
             <div className="text-2xl font-bold mt-1">{statusCounts.reserved || 0}</div>
           </CardContent>
         </Card>
+        <Card className="bg-red-50">
+          <CardContent className="p-4">
+            <div className="text-sm font-medium">Mesas Bloqueadas</div>
+            <div className="text-2xl font-bold mt-1">{blockedTablesCount || 0}</div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="relative">
@@ -257,6 +266,13 @@ const TablesPage = () => {
           className={selectedStatus === "reserved" ? "" : "text-blue-700"}
         >
           Reservadas
+        </Button>
+        <Button 
+          variant={selectedStatus === "blocked" ? "default" : "outline"}
+          onClick={() => setSelectedStatus("blocked")}
+          className={selectedStatus === "blocked" ? "" : "text-red-700"}
+        >
+          Bloqueadas
         </Button>
       </div>
 
@@ -369,6 +385,7 @@ const TablesPage = () => {
                   <SelectItem value="occupied">Ocupada</SelectItem>
                   <SelectItem value="active">Em Atendimento</SelectItem>
                   <SelectItem value="reserved">Reservada</SelectItem>
+                  <SelectItem value="blocked">Bloqueada</SelectItem>
                 </SelectContent>
               </Select>
             </div>

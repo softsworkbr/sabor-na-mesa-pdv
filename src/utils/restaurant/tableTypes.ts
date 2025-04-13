@@ -1,5 +1,5 @@
 
-export type TableStatus = "free" | "occupied" | "active" | "reserved";
+export type TableStatus = "free" | "occupied" | "active" | "reserved" | "blocked";
 
 export interface TableItem {
   id: string;
