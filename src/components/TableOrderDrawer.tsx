@@ -80,6 +80,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface PaymentMethod {
+  id: string;
+  name: string;
+  icon: React.ReactNode;
+  color: string;
+}
+
 interface TableOrderDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -258,8 +265,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       if (order) {
         setCurrentOrder(order);
         setOrderId(order.id);
-        setCustomerName(order.customer_name || "");
-        
+
         if (order.items && order.items.length > 0) {
           setOrderItems(order.items);
         } else {
