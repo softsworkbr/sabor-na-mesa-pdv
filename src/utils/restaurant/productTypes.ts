@@ -22,4 +22,15 @@ export interface Product {
   active?: boolean;
   product_categories?: ProductCategory;
   category?: ProductCategory; // Added for easier category access
+  extras?: ProductExtra[];
+}
+
+export interface ProductExtra {
+  id: string;
+  name: string;
+  price: number;
+  description?: string | null;
+  category_id?: string | null;
+  restaurant_id: string;
+  active: boolean;
 }

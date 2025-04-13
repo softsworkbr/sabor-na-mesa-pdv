@@ -22,7 +22,9 @@ import {
   Loader2,
   AlertTriangle,
   Image,
-  Tag
+  Tag,
+  DollarSign,
+  PlusCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,14 +70,32 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import {
   createProduct,
   updateProduct,
   deleteProduct,
   getProductsByRestaurant,
   getProductsByCategory,
   CreateProductProps,
-  UpdateProductProps
+  UpdateProductProps,
+  createProductExtra,
+  updateProductExtra,
+  deleteProductExtra,
+  getProductExtrasByRestaurant,
+  getProductExtrasByCategory,
+  assignExtrasToProduct,
+  getProductExtras
 } from "@/utils/restaurant/restaurantManagement";
+import { ProductExtra } from "@/utils/restaurant/productTypes";
 
 interface MenuItem {
   id: string;
@@ -120,24 +140,42 @@ const productSchema = z.object({
   active: z.boolean().default(true),
 });
 
+const extraSchema = z.object({
+  name: z.string().min(1, { message: "Nome do adicional é obrigatório" }),
+  description: z.string().optional(),
+  price: z.coerce.number().min(0, { message: "Preço não pode ser negativo" }),
+  category_id: z.string().optional(),
+  active: z.boolean().default(true),
+});
+
 type CategoryFormValues = z.infer<typeof categorySchema>;
 type ProductFormValues = z.infer<typeof productSchema>;
+type ExtraFormValues = z.infer<typeof extraSchema>;
 
 const MenuPage = () => {
   const { currentRestaurant } = useAuth();
   const [products, setProducts] = useState<MenuItem[]>([]);
+  const [extras, setExtras] = useState<ProductExtra[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  const [activeTab, setActiveTab] = useState("products");
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [showProductDialog, setShowProductDialog] = useState(false);
+  const [showExtraDialog, setShowExtraDialog] = useState(false);
+  const [showProductExtras, setShowProductExtras] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
   const [editingProduct, setEditingProduct] = useState<MenuItem | null>(null);
+  const [editingExtra, setEditingExtra] = useState<ProductExtra | null>(null);
+  const [selectedProductForExtras, setSelectedProductForExtras] = useState<MenuItem | null>(null);
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [showCategoriesTab, setShowCategoriesTab] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [extraToDelete, setExtraToDelete] = useState<string | null>(null);
+  const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
+  const [availableExtras, setAvailableExtras] = useState<ProductExtra[]>([]);
   
   const categoryForm = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -162,12 +200,27 @@ const MenuPage = () => {
     },
   });
 
+  const extraForm = useForm<ExtraFormValues>({
+    resolver: zodResolver(extraSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      price: 0,
+      category_id: "",
+      active: true,
+    },
+  });
+
   useEffect(() => {
     if (currentRestaurant) {
       fetchProductCategories();
-      fetchProducts();
+      if (activeTab === 'products') {
+        fetchProducts();
+      } else if (activeTab === 'extras') {
+        fetchExtras();
+      }
     }
-  }, [currentRestaurant]);
+  }, [currentRestaurant, activeTab]);
 
   const fetchProductCategories = async () => {
     if (!currentRestaurant) return;
@@ -204,6 +257,20 @@ const MenuPage = () => {
     }
   };
 
+  const fetchExtras = async () => {
+    if (!currentRestaurant) return;
+    
+    setIsLoading(true);
+    try {
+      const data = await getProductExtrasByRestaurant(currentRestaurant.id);
+      setExtras(data as ProductExtra[]);
+    } catch (error: any) {
+      console.error('Error fetching extras:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchProductsByCategory = async (categoryId: string) => {
     if (!currentRestaurant || categoryId === 'all') {
       fetchProducts();
@@ -221,15 +288,40 @@ const MenuPage = () => {
     }
   };
 
+  const fetchExtrasByCategory = async (categoryId: string) => {
+    if (!currentRestaurant || categoryId === 'all') {
+      fetchExtras();
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const data = await getProductExtrasByCategory(currentRestaurant.id, categoryId);
+      setExtras(data as ProductExtra[]);
+    } catch (error: any) {
+      console.error('Error fetching extras by category:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (currentRestaurant) {
-      if (activeCategory === 'all') {
-        fetchProducts();
-      } else {
-        fetchProductsByCategory(activeCategory);
+      if (activeTab === 'products') {
+        if (activeCategory === 'all') {
+          fetchProducts();
+        } else {
+          fetchProductsByCategory(activeCategory);
+        }
+      } else if (activeTab === 'extras') {
+        if (activeCategory === 'all') {
+          fetchExtras();
+        } else {
+          fetchExtrasByCategory(activeCategory);
+        }
       }
     }
-  }, [activeCategory, currentRestaurant]);
+  }, [activeCategory, currentRestaurant, activeTab]);
 
   const openCategoryDialog = (category?: ProductCategory) => {
     if (category) {
@@ -279,6 +371,50 @@ const MenuPage = () => {
     setShowProductDialog(true);
   };
 
+  const openExtraDialog = (extra?: ProductExtra) => {
+    if (extra) {
+      setEditingExtra(extra);
+      extraForm.reset({
+        name: extra.name,
+        description: extra.description || "",
+        price: extra.price,
+        category_id: extra.category_id || "",
+        active: extra.active,
+      });
+    } else {
+      setEditingExtra(null);
+      extraForm.reset({
+        name: "",
+        description: "",
+        price: 0,
+        category_id: activeCategory !== 'all' ? activeCategory : "",
+        active: true,
+      });
+    }
+    setShowExtraDialog(true);
+  };
+
+  const openProductExtrasDialog = async (product: MenuItem) => {
+    setSelectedProductForExtras(product);
+    setIsLoading(true);
+    
+    try {
+      // Fetch all available extras
+      const allExtras = await getProductExtrasByRestaurant(currentRestaurant!.id);
+      setAvailableExtras(allExtras as ProductExtra[]);
+      
+      // Fetch extras already assigned to this product
+      const productExtras = await getProductExtras(product.id);
+      setSelectedExtras(productExtras.map(extra => extra.id));
+    } catch (error) {
+      console.error("Error loading product extras:", error);
+      toast.error("Erro ao carregar adicionais do produto");
+    } finally {
+      setIsLoading(false);
+      setShowProductExtras(true);
+    }
+  };
+
   const closeCategoryDialog = () => {
     setShowCategoryDialog(false);
     setEditingCategory(null);
@@ -287,6 +423,17 @@ const MenuPage = () => {
   const closeProductDialog = () => {
     setShowProductDialog(false);
     setEditingProduct(null);
+  };
+
+  const closeExtraDialog = () => {
+    setShowExtraDialog(false);
+    setEditingExtra(null);
+  };
+
+  const closeProductExtrasDialog = () => {
+    setShowProductExtras(false);
+    setSelectedProductForExtras(null);
+    setSelectedExtras([]);
   };
 
   const onSaveCategory = async (values: CategoryFormValues) => {
@@ -383,13 +530,81 @@ const MenuPage = () => {
     }
   };
 
+  const onSaveExtra = async (values: ExtraFormValues) => {
+    if (!currentRestaurant) {
+      toast.error("Nenhum restaurante selecionado");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const extraData = {
+        name: values.name,
+        description: values.description || null,
+        price: values.price,
+        category_id: values.category_id || null,
+        restaurant_id: currentRestaurant.id,
+        active: values.active,
+      };
+
+      if (editingExtra) {
+        // Update existing extra
+        await updateProductExtra(editingExtra.id, extraData);
+      } else {
+        // Create new extra
+        await createProductExtra(extraData);
+      }
+      
+      // Refresh extras list
+      if (activeCategory === 'all') {
+        await fetchExtras();
+      } else {
+        await fetchExtrasByCategory(activeCategory);
+      }
+      
+      closeExtraDialog();
+    } catch (error: any) {
+      toast.error(`Erro ao salvar adicional: ${error.message}`);
+      console.error('Error saving product extra:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onSaveProductExtras = async () => {
+    if (!selectedProductForExtras || !currentRestaurant) return;
+    
+    setIsLoading(true);
+    try {
+      await assignExtrasToProduct(selectedProductForExtras.id, selectedExtras);
+      toast.success("Adicionais atribuídos com sucesso!");
+      closeProductExtrasDialog();
+    } catch (error) {
+      console.error("Error saving product extras:", error);
+      toast.error("Erro ao salvar adicionais");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const confirmDeleteCategory = (categoryId: string) => {
     setCategoryToDelete(categoryId);
+    setProductToDelete(null);
+    setExtraToDelete(null);
     setDeleteDialogOpen(true);
   };
 
   const confirmDeleteProduct = (productId: string) => {
     setProductToDelete(productId);
+    setCategoryToDelete(null);
+    setExtraToDelete(null);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteExtra = (extraId: string) => {
+    setExtraToDelete(extraId);
+    setCategoryToDelete(null);
+    setProductToDelete(null);
     setDeleteDialogOpen(true);
   };
 
@@ -416,6 +631,15 @@ const MenuPage = () => {
           await fetchProductsByCategory(activeCategory);
         }
         setProductToDelete(null);
+      } else if (extraToDelete) {
+        await deleteProductExtra(extraToDelete);
+        
+        if (activeCategory === 'all') {
+          await fetchExtras();
+        } else {
+          await fetchExtrasByCategory(activeCategory);
+        }
+        setExtraToDelete(null);
       }
     } catch (error: any) {
       toast.error(`Erro ao excluir: ${error.message}`);
@@ -426,7 +650,20 @@ const MenuPage = () => {
     }
   };
 
+  const toggleExtraSelection = (extraId: string) => {
+    setSelectedExtras(prevSelected => 
+      prevSelected.includes(extraId)
+        ? prevSelected.filter(id => id !== extraId)
+        : [...prevSelected, extraId]
+    );
+  };
+
   const filteredProducts = products.filter(item => 
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const filteredExtras = extras.filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -448,15 +685,34 @@ const MenuPage = () => {
           >
             {showCategoriesTab ? "Ver Produtos" : "Gerenciar Categorias"}
           </Button>
+          {!showCategoriesTab && (
+            <Button 
+              variant="outline" 
+              onClick={() => setActiveTab(activeTab === 'products' ? 'extras' : 'products')}
+              className="mr-2"
+            >
+              {activeTab === 'products' ? "Ver Adicionais" : "Ver Produtos"}
+            </Button>
+          )}
           <Button 
             className="bg-pos-primary hover:bg-pos-primary/90"
-            onClick={() => showCategoriesTab 
-              ? openCategoryDialog() 
-              : openProductDialog()
-            }
+            onClick={() => {
+              if (showCategoriesTab) {
+                openCategoryDialog();
+              } else if (activeTab === 'products') {
+                openProductDialog();
+              } else {
+                openExtraDialog();
+              }
+            }}
           >
             <Plus className="h-4 w-4 mr-2" /> 
-            {showCategoriesTab ? "Nova Categoria" : "Novo Produto"}
+            {showCategoriesTab 
+              ? "Nova Categoria" 
+              : activeTab === 'products' 
+                ? "Novo Produto" 
+                : "Novo Adicional"
+            }
           </Button>
         </div>
       </div>
@@ -536,7 +792,7 @@ const MenuPage = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input 
-              placeholder="Buscar produtos..." 
+              placeholder={`Buscar ${activeTab === 'products' ? 'produtos' : 'adicionais'}...`} 
               className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -553,30 +809,59 @@ const MenuPage = () => {
               ))}
             </TabsList>
             
-            <TabsContent value="all" className="p-0">
-              {isLoading ? (
-                <div className="flex justify-center p-4">
-                  <Loader2 className="h-8 w-8 animate-spin text-pos-primary" />
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredProducts.length === 0 ? (
-                    <div className="col-span-full text-center py-8 text-muted-foreground">
-                      Nenhum produto encontrado. Adicione produtos clicando em "Novo Produto".
-                    </div>
-                  ) : (
-                    filteredProducts.map(product => (
-                      <MenuItemCard 
-                        key={product.id} 
-                        item={product} 
-                        onEdit={() => openProductDialog(product)}
-                        onDelete={() => confirmDeleteProduct(product.id)}
-                      />
-                    ))
-                  )}
-                </div>
-              )}
-            </TabsContent>
+            {activeTab === 'products' ? (
+              <TabsContent value="all" className="p-0">
+                {isLoading ? (
+                  <div className="flex justify-center p-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-pos-primary" />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredProducts.length === 0 ? (
+                      <div className="col-span-full text-center py-8 text-muted-foreground">
+                        Nenhum produto encontrado. Adicione produtos clicando em "Novo Produto".
+                      </div>
+                    ) : (
+                      filteredProducts.map(product => (
+                        <MenuItemCard 
+                          key={product.id} 
+                          item={product} 
+                          onEdit={() => openProductDialog(product)}
+                          onDelete={() => confirmDeleteProduct(product.id)}
+                          onManageExtras={() => openProductExtrasDialog(product)}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+            ) : (
+              <TabsContent value="all" className="p-0">
+                {isLoading ? (
+                  <div className="flex justify-center p-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-pos-primary" />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredExtras.length === 0 ? (
+                      <div className="col-span-full text-center py-8 text-muted-foreground">
+                        Nenhum adicional encontrado. Adicione adicionais clicando em "Novo Adicional".
+                      </div>
+                    ) : (
+                      filteredExtras.map(extra => (
+                        <ExtraItemCard 
+                          key={extra.id} 
+                          item={extra} 
+                          onEdit={() => openExtraDialog(extra)}
+                          onDelete={() => confirmDeleteExtra(extra.id)}
+                          categories={productCategories}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+            )}
             
             {productCategories.filter(cat => cat.active).map(category => (
               <TabsContent key={category.id} value={category.id} className="p-0">
@@ -586,19 +871,38 @@ const MenuPage = () => {
                   </div>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredProducts.length === 0 ? (
-                      <div className="col-span-full text-center py-8 text-muted-foreground">
-                        Nenhum produto encontrado nesta categoria. Adicione produtos clicando em "Novo Produto".
-                      </div>
+                    {activeTab === 'products' ? (
+                      filteredProducts.length === 0 ? (
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
+                          Nenhum produto encontrado nesta categoria. Adicione produtos clicando em "Novo Produto".
+                        </div>
+                      ) : (
+                        filteredProducts.map(product => (
+                          <MenuItemCard 
+                            key={product.id} 
+                            item={product} 
+                            onEdit={() => openProductDialog(product)}
+                            onDelete={() => confirmDeleteProduct(product.id)}
+                            onManageExtras={() => openProductExtrasDialog(product)}
+                          />
+                        ))
+                      )
                     ) : (
-                      filteredProducts.map(product => (
-                        <MenuItemCard 
-                          key={product.id} 
-                          item={product} 
-                          onEdit={() => openProductDialog(product)}
-                          onDelete={() => confirmDeleteProduct(product.id)}
-                        />
-                      ))
+                      filteredExtras.length === 0 ? (
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
+                          Nenhum adicional encontrado nesta categoria. Adicione adicionais clicando em "Novo Adicional".
+                        </div>
+                      ) : (
+                        filteredExtras.map(extra => (
+                          <ExtraItemCard 
+                            key={extra.id} 
+                            item={extra}
+                            onEdit={() => openExtraDialog(extra)}
+                            onDelete={() => confirmDeleteExtra(extra.id)}
+                            categories={productCategories}
+                          />
+                        ))
+                      )
                     )}
                   </div>
                 )}
@@ -918,6 +1222,226 @@ const MenuPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Extra Edit/Create Dialog */}
+      <Dialog open={showExtraDialog} onOpenChange={closeExtraDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingExtra ? "Editar Adicional" : "Novo Adicional"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <Form {...extraForm}>
+            <form onSubmit={extraForm.handleSubmit(onSaveExtra)} className="space-y-4">
+              <FormField
+                control={extraForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome do adicional" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={extraForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="Descrição do adicional (opcional)" 
+                        {...field} 
+                        value={field.value || ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={extraForm.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Preço (R$)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          min="0" 
+                          placeholder="0.00" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={extraForm.control}
+                  name="category_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Categoria (opcional)</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione a categoria" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">Sem categoria</SelectItem>
+                          {productCategories.map(category => (
+                            <SelectItem 
+                              key={category.id} 
+                              value={category.id}
+                            >
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Pode ser agrupado por categoria
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <FormField
+                control={extraForm.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Adicional Ativo</FormLabel>
+                      <FormDescription>
+                        Adicionais inativos não são exibidos no cardápio
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="bg-gray-300 data-[state=checked]:bg-green-500"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={closeExtraDialog}>
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="bg-pos-primary hover:bg-pos-primary/90"
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {editingExtra ? 'Atualizar' : 'Criar'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Extras Dialog */}
+      <Dialog open={showProductExtras} onOpenChange={closeProductExtrasDialog}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              Gerenciar Adicionais para {selectedProductForExtras?.name}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {isLoading ? (
+            <div className="flex justify-center p-10">
+              <Loader2 className="h-8 w-8 animate-spin text-pos-primary" />
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                {availableExtras.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Nenhum adicional disponível. Crie adicionais primeiro.
+                  </div>
+                ) : (
+                  availableExtras.map(extra => (
+                    <div 
+                      key={extra.id}
+                      className={`flex items-center justify-between p-3 rounded-md border ${
+                        selectedExtras.includes(extra.id) ? 'border-pos-primary bg-pos-primary/5' : ''
+                      }`}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium">{extra.name}</p>
+                          <div className="text-right">
+                            <p className="font-semibold text-pos-primary">
+                              {extra.price ? `+ R$ ${extra.price.toFixed(2)}` : 'Grátis'}
+                            </p>
+                          </div>
+                        </div>
+                        {extra.description && (
+                          <p className="text-sm text-muted-foreground">{extra.description}</p>
+                        )}
+                      </div>
+                      <div className="ml-4">
+                        <Button
+                          type="button"
+                          variant={selectedExtras.includes(extra.id) ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => toggleExtraSelection(extra.id)}
+                          className={selectedExtras.includes(extra.id) ? "bg-pos-primary" : ""}
+                        >
+                          {selectedExtras.includes(extra.id) ? (
+                            <>Selecionado</>
+                          ) : (
+                            <>Selecionar</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={closeProductExtrasDialog}>
+                  Cancelar
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="bg-pos-primary hover:bg-pos-primary/90"
+                  onClick={onSaveProductExtras}
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Salvar Adicionais
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -929,7 +1453,9 @@ const MenuPage = () => {
             <AlertDialogDescription>
               {categoryToDelete 
                 ? "Tem certeza que deseja excluir esta categoria? Esta ação não pode ser desfeita."
-                : "Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita."
+                : productToDelete
+                  ? "Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita."
+                  : "Tem certeza que deseja excluir este adicional? Esta ação não pode ser desfeita."
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -937,6 +1463,7 @@ const MenuPage = () => {
             <AlertDialogCancel onClick={() => {
               setCategoryToDelete(null);
               setProductToDelete(null);
+              setExtraToDelete(null);
             }}>
               Cancelar
             </AlertDialogCancel>
@@ -960,11 +1487,13 @@ const MenuPage = () => {
 const MenuItemCard = ({ 
   item, 
   onEdit,
-  onDelete 
+  onDelete,
+  onManageExtras
 }: { 
   item: MenuItem;
   onEdit: () => void;
   onDelete: () => void;
+  onManageExtras: () => void;
 }) => {
   return (
     <Card className={`${!item.active ? 'opacity-60' : ''}`}>
@@ -975,6 +1504,9 @@ const MenuItemCard = ({
             {!item.active && <span className="ml-2 text-xs font-normal py-1 px-2 bg-red-100 text-red-800 rounded-full">Inativo</span>}
           </CardTitle>
           <div className="flex gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={onManageExtras}>
+              <PlusCircle className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={onEdit}>
               <Edit className="h-4 w-4" />
             </Button>
@@ -1010,4 +1542,55 @@ const MenuItemCard = ({
   );
 };
 
+const ExtraItemCard = ({ 
+  item, 
+  onEdit, 
+  onDelete,
+  categories = []
+}: { 
+  item: ProductExtra; 
+  onEdit: () => void; 
+  onDelete: () => void;
+  categories: ProductCategory[];
+}) => {
+  const category = categories.find(cat => cat.id === item.category_id);
+  
+  return (
+    <Card className={`${!item.active ? 'opacity-60' : ''}`}>
+      <CardHeader className="p-4 pb-2">
+        <div className="flex justify-between">
+          <CardTitle className="text-lg">
+            {item.name}
+            {!item.active && <span className="ml-2 text-xs font-normal py-1 px-2 bg-red-100 text-red-800 rounded-full">Inativo</span>}
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={onEdit}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={onDelete}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        {category && (
+          <Badge variant="outline" className="flex items-center gap-1 text-xs mt-2 w-fit">
+            <Tag className="h-3 w-3" />
+            {category.name}
+          </Badge>
+        )}
+      </CardHeader>
+      <CardContent className="p-4 pt-2">
+        <p className="text-sm text-gray-600">{item.description || "Sem descrição"}</p>
+        <div className="flex justify-between items-center mt-4">
+          <p className="text-lg font-bold flex items-center">
+            <DollarSign className="h-4 w-4 mr-1 text-green-600" />
+            R$ {item.price.toFixed(2)}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export default MenuPage;
+

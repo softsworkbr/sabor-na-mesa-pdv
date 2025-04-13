@@ -1,3 +1,4 @@
+
 import { Product } from "./productTypes";
 
 export type OrderStatus = "active" | "completed" | "cancelled" | "pending";
@@ -10,6 +11,7 @@ export interface OrderItem {
   price: number;
   quantity: number;
   observation?: string | null;
+  extras?: ProductExtra[] | null;
 }
 
 export interface Order {
@@ -44,9 +46,40 @@ export interface CreateOrderItemProps {
   price: number;
   quantity: number;
   observation?: string | null;
+  extras?: ProductExtra[] | null;
 }
 
 export interface UpdateOrderItemProps {
   quantity?: number;
   observation?: string | null;
+  extras?: ProductExtra[] | null;
+}
+
+// Product extra type
+export interface ProductExtra {
+  id: string;
+  name: string;
+  price: number;
+  description?: string | null;
+  category_id?: string | null;
+  restaurant_id: string;
+  active: boolean;
+}
+
+// Extra creation and update types
+export interface CreateProductExtraProps {
+  name: string;
+  price: number;
+  description?: string | null;
+  category_id?: string | null;
+  restaurant_id: string;
+  active?: boolean;
+}
+
+export interface UpdateProductExtraProps {
+  name?: string;
+  price?: number;
+  description?: string | null;
+  category_id?: string | null;
+  active?: boolean;
 }

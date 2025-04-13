@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CreateRestaurantProps } from "./types";
@@ -140,9 +139,9 @@ export const updateRestaurant = async (
 
     toast.success('Restaurante atualizado com sucesso!');
     return updatedRestaurant;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating restaurant:', error);
-    throw error; // Modificado para propagar o erro para quem chamou a função
+    throw error;
   }
 };
 
@@ -268,5 +267,186 @@ export const getProductsByRestaurant = async (restaurantId: string) => {
   } catch (error: any) {
     console.error('Error fetching products:', error);
     throw error;
+  }
+};
+
+// Product extra related functions
+
+export type CreateProductExtraProps = {
+  name: string;
+  price: number;
+  description?: string;
+  category_id?: string;
+  restaurant_id: string;
+  active?: boolean;
+};
+
+export type UpdateProductExtraProps = Partial<CreateProductExtraProps>;
+
+export const createProductExtra = async (data: CreateProductExtraProps) => {
+  try {
+    const { data: extra, error } = await supabase
+      .from('product_extras')
+      .insert({
+        name: data.name,
+        description: data.description || null,
+        price: data.price,
+        category_id: data.category_id || null,
+        restaurant_id: data.restaurant_id,
+        active: data.active !== undefined ? data.active : true,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error(`Erro ao criar adicional: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Adicional criado com sucesso!');
+    return extra;
+  } catch (error: any) {
+    console.error('Error creating product extra:', error);
+    throw error;
+  }
+};
+
+export const updateProductExtra = async (extraId: string, data: UpdateProductExtraProps) => {
+  try {
+    const { data: updatedExtra, error } = await supabase
+      .from('product_extras')
+      .update(data)
+      .eq('id', extraId)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error(`Erro ao atualizar adicional: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Adicional atualizado com sucesso!');
+    return updatedExtra;
+  } catch (error: any) {
+    console.error('Error updating product extra:', error);
+    throw error;
+  }
+};
+
+export const deleteProductExtra = async (extraId: string) => {
+  try {
+    const { error } = await supabase
+      .from('product_extras')
+      .delete()
+      .eq('id', extraId);
+
+    if (error) {
+      toast.error(`Erro ao excluir adicional: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Adicional excluído com sucesso!');
+  } catch (error: any) {
+    console.error('Error deleting product extra:', error);
+    throw error;
+  }
+};
+
+export const getProductExtrasByRestaurant = async (restaurantId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('product_extras')
+      .select('*, product_categories(name)')
+      .eq('restaurant_id', restaurantId)
+      .order('name');
+
+    if (error) {
+      toast.error(`Erro ao buscar adicionais: ${error.message}`);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error: any) {
+    console.error('Error fetching product extras:', error);
+    throw error;
+  }
+};
+
+export const getProductExtrasByCategory = async (restaurantId: string, categoryId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('product_extras')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .eq('category_id', categoryId)
+      .order('name');
+
+    if (error) {
+      toast.error(`Erro ao buscar adicionais: ${error.message}`);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error: any) {
+    console.error('Error fetching product extras:', error);
+    throw error;
+  }
+};
+
+export const assignExtrasToProduct = async (productId: string, extraIds: string[]) => {
+  try {
+    // First, remove existing relations
+    const { error: deleteError } = await supabase
+      .from('product_to_extras')
+      .delete()
+      .eq('product_id', productId);
+    
+    if (deleteError) {
+      toast.error(`Erro ao atualizar adicionais: ${deleteError.message}`);
+      throw deleteError;
+    }
+
+    if (extraIds.length === 0) {
+      return;
+    }
+
+    // Then, add new relations
+    const relations = extraIds.map(extraId => ({
+      product_id: productId,
+      extra_id: extraId
+    }));
+
+    const { error } = await supabase
+      .from('product_to_extras')
+      .insert(relations);
+
+    if (error) {
+      toast.error(`Erro ao atribuir adicionais: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Adicionais atribuídos com sucesso!');
+  } catch (error: any) {
+    console.error('Error assigning extras to product:', error);
+    throw error;
+  }
+};
+
+export const getProductExtras = async (productId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('product_to_extras')
+      .select('extra_id, product_extras(*)')
+      .eq('product_id', productId);
+
+    if (error) {
+      console.error('Error fetching product extras:', error);
+      return [];
+    }
+
+    return data.map(item => item.product_extras) || [];
+  } catch (error: any) {
+    console.error('Error fetching product extras:', error);
+    return [];
   }
 };

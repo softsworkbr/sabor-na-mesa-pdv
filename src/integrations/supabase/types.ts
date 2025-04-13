@@ -12,6 +12,7 @@ export type Database = {
       order_items: {
         Row: {
           created_at: string
+          extras: Json | null
           id: string
           name: string
           observation: string | null
@@ -23,6 +24,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          extras?: Json | null
           id?: string
           name: string
           observation?: string | null
@@ -34,6 +36,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          extras?: Json | null
           id?: string
           name?: string
           observation?: string | null
@@ -141,6 +144,93 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_extras: {
+        Row: {
+          active: boolean
+          category_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          price: number
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          price?: number
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          price?: number
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_extras_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_extras_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_to_extras: {
+        Row: {
+          created_at: string
+          extra_id: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          extra_id: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          extra_id?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_to_extras_extra_id_fkey"
+            columns: ["extra_id"]
+            isOneToOne: false
+            referencedRelation: "product_extras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_to_extras_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
