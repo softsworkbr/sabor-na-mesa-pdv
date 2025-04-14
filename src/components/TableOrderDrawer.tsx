@@ -36,6 +36,7 @@ import {
   createOrder,
   updateOrderItem,
   removeOrderItem,
+  addOrderPayment,
 } from "@/utils/restaurant/orderManagement";
 import { 
   updateTable,
@@ -77,9 +78,10 @@ interface TableOrderDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   table: Table | null;
+  onTableStatusChange?: () => void;
 }
 
-const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => {
+const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: TableOrderDrawerProps) => {
   const [customerName, setCustomerName] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -917,31 +919,73 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   
   const handleCompletePayment = async (payments: PaymentItem[], includeServiceFee: boolean) => {
     try {
-      if (!orderId) return;
+      if (!orderId || !table) return;
       
+      console.log("Processando pagamentos:", payments);
+      console.log("Incluir taxa de serviço:", includeServiceFee);
+      
+      // Usar as funções da API para salvar os pagamentos
       for (const payment of payments) {
-        await supabase.from('order_payments').insert({
-          order_id: orderId,
-          payment_method_id: payment.method.id,
-          amount: payment.amount,
-          include_service_fee: includeServiceFee
-        });
+        try {
+          console.log("Salvando pagamento:", payment);
+          await addOrderPayment({
+            order_id: orderId,
+            payment_method_id: payment.method.id,
+            amount: payment.amount,
+            include_service_fee: includeServiceFee
+          });
+        } catch (paymentError) {
+          console.error("Erro ao salvar pagamento individual:", paymentError);
+          throw paymentError;
+        }
       }
       
-      await supabase.from('orders').update({ 
-        payment_status: 'paid',
-        service_fee: includeServiceFee ? serviceFee : 0
-      }).eq('id', orderId);
+      try {
+        console.log("Atualizando status do pedido:", orderId);
+        // Atualizar o status do pedido para completado, mas manter a referência à mesa
+        const { error: orderUpdateError } = await supabase
+          .from('orders')
+          .update({ 
+            status: 'completed',  // Atualizar status do pedido para completado
+            payment_status: 'paid',
+            service_fee: includeServiceFee ? serviceFee : 0  // Atualizar a taxa de serviço
+          })
+          .eq('id', orderId);
+          
+        if (orderUpdateError) {
+          console.error("Erro ao atualizar status do pedido:", orderUpdateError);
+          throw orderUpdateError;
+        }
+      } catch (orderError) {
+        console.error("Erro ao atualizar pedido:", orderError);
+        throw orderError;
+      }
+      
+      try {
+        console.log("Liberando mesa:", table.id);
+        // Liberar a mesa (atualizar status para "free")
+        await updateTable(table.id, { 
+          status: "free"
+        });
+      } catch (tableError) {
+        console.error("Erro ao liberar mesa:", tableError);
+        throw tableError;
+      }
       
       setShowPaymentModal(false);
       
-      toast.success("Pagamento realizado com sucesso!");
+      toast.success("Pagamento realizado com sucesso! Mesa liberada.");
       
       onClose();
       
-    } catch (error) {
+      // Recarregar as mesas para atualizar a interface
+      if (typeof onTableStatusChange === 'function') {
+        onTableStatusChange();
+      }
+      
+    } catch (error: any) {
       console.error("Erro ao processar pagamento:", error);
-      toast.error("Erro ao processar pagamento");
+      toast.error(`Erro ao processar pagamento: ${error?.message || 'Erro desconhecido'}`);
     }
   };
 

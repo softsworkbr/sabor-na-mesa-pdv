@@ -433,6 +433,7 @@ const TablesPage = () => {
           status: selectedTable.status,
           capacity: selectedTable.occupants || 0
         } as TableOrderTable : null} 
+        onTableStatusChange={fetchTables}
       />
     </div>
   );

@@ -1,4 +1,3 @@
-
 export type TableStatus = "free" | "occupied" | "active" | "reserved" | "blocked";
 
 export interface TableItem {
