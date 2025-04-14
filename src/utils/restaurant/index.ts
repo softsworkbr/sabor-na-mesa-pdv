@@ -1,4 +1,3 @@
-
 // Re-export all restaurant utility functions and types from a single entry point
 
 // Export types
@@ -81,3 +80,17 @@ export {
   getPaymentMethods,
   completeOrderPayment
 } from './orderManagement';
+
+// Export printer management functions
+export {
+  getPrinterConfigsByRestaurant,
+  createPrinterConfig,
+  updatePrinterConfig,
+  deletePrinterConfig
+} from './printerManagement';
+
+// Export printer config types
+export type {
+  PrinterConfig,
+  CreatePrinterConfigProps
+} from './types';

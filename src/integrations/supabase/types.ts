@@ -179,6 +179,39 @@ export type Database = {
         }
         Relationships: []
       }
+      printer_configs: {
+        Row: {
+          created_at: string
+          display_name: string
+          endpoint: string | null
+          id: string
+          ip_address: string | null
+          restaurant_id: string
+          updated_at: string
+          windows_printer_name: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          endpoint?: string | null
+          id?: string
+          ip_address?: string | null
+          restaurant_id: string
+          updated_at?: string
+          windows_printer_name: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          endpoint?: string | null
+          id?: string
+          ip_address?: string | null
+          restaurant_id?: string
+          updated_at?: string
+          windows_printer_name?: string
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           active: boolean
