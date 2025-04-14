@@ -106,6 +106,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
 
+  // Sample data for development/testing
   const sampleProducts: Product[] = [
     { id: "1", category_id: "cervejas", name: "Heineken zero", price: 9.50, restaurant_id: "" },
     { id: "2", category_id: "cervejas", name: "Brahma 600ml", price: 9.90, restaurant_id: "" },
@@ -148,7 +149,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     { id: "lanches_especiais", name: "Lanches especiais", color: "bg-lime-300", textColor: "text-black", restaurant_id: "" },
     { id: "outros", name: "Outros", color: "bg-yellow-400", textColor: "text-black", restaurant_id: "" },
   ];
-
+  
   useEffect(() => {
     if (isOpen && table?.id) {
       fetchProductCategories();
@@ -532,8 +533,10 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     if (!table || !table.id) return;
     
     try {
+      // Update table status to free
       await updateTable(table.id, { status: "free" });
       
+      // Reload table order to refresh status
       await loadTableOrder();
       
       toast.success("Mesa liberada com sucesso!");
@@ -824,4 +827,3 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                 value={localObservation}
                 onChange={(e) => setLocalObservation(e.target.value)}
                 className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring
-  </initial_code>
