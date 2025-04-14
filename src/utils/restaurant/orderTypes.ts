@@ -84,7 +84,7 @@ export interface UpdateProductExtraProps {
   active?: boolean;
 }
 
-// Tipos para pagamentos
+// Payment types
 export interface PaymentMethod {
   id: string;
   name: string;

@@ -428,7 +428,7 @@ export const addOrderPayment = async (data: CreateOrderPaymentProps): Promise<Or
 };
 
 /**
- * Obtém os métodos de pagamento dispon��veis
+ * Obtém os métodos de pagamento dispon����veis
  */
 export const getPaymentMethods = async (): Promise<PaymentMethod[]> => {
   try {

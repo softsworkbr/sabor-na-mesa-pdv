@@ -431,7 +431,7 @@ const TablesPage = () => {
           id: selectedTable.id.toString(),
           number: selectedTable.number,
           status: selectedTable.status,
-          capacity: selectedTable.occupants || undefined
+          capacity: selectedTable.occupants || 0
         } as TableOrderTable : null} 
       />
     </div>
