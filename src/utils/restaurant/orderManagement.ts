@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
@@ -9,7 +10,8 @@ import {
   UpdateOrderItemProps,
   ProductExtra,
   OrderPayment,
-  PaymentMethod
+  PaymentMethod,
+  CreateOrderPaymentProps
 } from "./orderTypes";
 
 /**
@@ -428,7 +430,7 @@ export const addOrderPayment = async (data: CreateOrderPaymentProps): Promise<Or
 };
 
 /**
- * Obtém os métodos de pagamento dispon����veis
+ * Obtém os métodos de pagamento disponíveis
  */
 export const getPaymentMethods = async (): Promise<PaymentMethod[]> => {
   try {
