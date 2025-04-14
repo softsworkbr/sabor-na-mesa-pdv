@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -9,10 +8,24 @@ import { Label } from "@/components/ui/label";
 import { useForm } from "react-hook-form";
 import { updateRestaurant } from "@/utils/restaurant";
 import { useToast } from "@/components/ui/use-toast";
+import { Plus, Printer } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { getPrinterConfigsByRestaurant } from "@/utils/restaurant";
+import { PrinterConfigModal } from "@/components/modals/PrinterConfigModal";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const SettingsPage = () => {
   const { currentRestaurant, refreshRestaurants } = useAuth();
   const { toast } = useToast();
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [selectedPrinter, setSelectedPrinter] = React.useState<any>(null);
+
+  const { data: printers = [], refetch } = useQuery({
+    queryKey: ['printers', currentRestaurant?.id],
+    queryFn: () => getPrinterConfigsByRestaurant(currentRestaurant?.id || ''),
+    enabled: !!currentRestaurant?.id,
+  });
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
       name: currentRestaurant?.name || '',
@@ -49,6 +62,16 @@ const SettingsPage = () => {
     }
   };
 
+  const handleAddPrinter = () => {
+    setSelectedPrinter(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditPrinter = (printer: any) => {
+    setSelectedPrinter(printer);
+    setIsModalOpen(true);
+  };
+
   if (!currentRestaurant) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -69,6 +92,7 @@ const SettingsPage = () => {
       <Tabs defaultValue="general">
         <TabsList className="mb-4">
           <TabsTrigger value="general">Geral</TabsTrigger>
+          <TabsTrigger value="printers">Impressoras</TabsTrigger>
           <TabsTrigger value="appearance">Aparência</TabsTrigger>
           <TabsTrigger value="notifications">Notificações</TabsTrigger>
         </TabsList>
@@ -122,6 +146,64 @@ const SettingsPage = () => {
           </Card>
         </TabsContent>
         
+        <TabsContent value="printers">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Impressoras</CardTitle>
+                  <CardDescription>
+                    Gerencie suas impressoras térmicas
+                  </CardDescription>
+                </div>
+                <Button onClick={handleAddPrinter}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Impressora
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome de Exibição</TableHead>
+                    <TableHead>Nome da Impressora no Windows</TableHead>
+                    <TableHead>Endpoint</TableHead>
+                    <TableHead>Endereço IP</TableHead>
+                    <TableHead className="w-[100px]">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {printers.map((printer) => (
+                    <TableRow key={printer.id}>
+                      <TableCell>{printer.display_name}</TableCell>
+                      <TableCell>{printer.windows_printer_name}</TableCell>
+                      <TableCell>{printer.endpoint || '-'}</TableCell>
+                      <TableCell>{printer.ip_address || '-'}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditPrinter(printer)}
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {printers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-6">
+                        Nenhuma impressora configurada
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
         <TabsContent value="appearance">
           <Card>
             <CardHeader>
@@ -150,6 +232,16 @@ const SettingsPage = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <PrinterConfigModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          refetch();
+        }}
+        restaurantId={currentRestaurant?.id || ''}
+        existingConfig={selectedPrinter}
+      />
     </div>
   );
 };
