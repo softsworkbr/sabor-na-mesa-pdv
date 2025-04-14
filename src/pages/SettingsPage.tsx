@@ -11,7 +11,7 @@ import { updateRestaurant } from "@/utils/restaurant";
 import { useToast } from "@/components/ui/use-toast";
 
 const SettingsPage = () => {
-  const { currentRestaurant, refreshUserRestaurants } = useAuth();
+  const { currentRestaurant, refreshRestaurants } = useAuth();
   const { toast } = useToast();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
@@ -33,7 +33,7 @@ const SettingsPage = () => {
       }
 
       await updateRestaurant(currentRestaurant.id, data);
-      await refreshUserRestaurants();
+      await refreshRestaurants();
       
       toast({
         title: "Sucesso",
