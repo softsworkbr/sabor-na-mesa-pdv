@@ -55,21 +55,6 @@ export interface UpdateOrderItemProps {
   extras?: ProductExtra[] | null;
 }
 
-// Payment related types
-export interface PaymentMethod {
-  id: string;
-  name: string;
-  icon: React.ReactNode;
-  color: string;
-}
-
-export interface PaymentEntry {
-  id: string;
-  methodId: string;
-  methodName: string;
-  amount: number;
-}
-
 // Product extra type
 export interface ProductExtra {
   id: string;
