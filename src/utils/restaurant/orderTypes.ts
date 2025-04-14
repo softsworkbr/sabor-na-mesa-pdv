@@ -24,7 +24,6 @@ export interface Order {
   created_at?: string;
   updated_at?: string;
   items?: OrderItem[];
-  payments?: Payment[];
 }
 
 export interface CreateOrderProps {
@@ -54,28 +53,6 @@ export interface UpdateOrderItemProps {
   quantity?: number;
   observation?: string | null;
   extras?: ProductExtra[] | null;
-}
-
-// Payment types
-export type PaymentMethod = 'cash' | 'credit' | 'debit' | 'pix' | 'other';
-
-export interface Payment {
-  id?: string;
-  order_id: string;
-  method: PaymentMethod;
-  amount: number;
-  provided_amount?: number; // For cash payments to calculate change
-  created_at?: string;
-}
-
-export interface PaymentSummary {
-  total: number;
-  paid: number;
-  remaining: number;
-  methods: {
-    method: PaymentMethod;
-    amount: number;
-  }[];
 }
 
 // Product extra type
