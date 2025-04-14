@@ -87,49 +87,6 @@ interface TableOrderDrawerProps {
   table: TableOrderTable | null;
 }
 
-const sampleProducts: Product[] = [
-  { id: "1", category_id: "cervejas", name: "Heineken zero", price: 9.50, restaurant_id: "" },
-  { id: "2", category_id: "cervejas", name: "Brahma 600ml", price: 9.90, restaurant_id: "" },
-  { id: "3", category_id: "cervejas", name: "Original 600ml", price: 12.50, restaurant_id: "" },
-  { id: "4", category_id: "cervejas", name: "Serramalte 600ml", price: 12.50, restaurant_id: "" },
-  { id: "5", category_id: "cervejas", name: "Budweiser long", price: 9.50, restaurant_id: "" },
-  { id: "6", category_id: "cervejas", name: "Cabare", price: 9.90, restaurant_id: "" },
-  { id: "7", category_id: "cervejas", name: "Heineken 600", price: 15.00, restaurant_id: "" },
-  { id: "8", category_id: "cervejas", name: "Heineken long", price: 9.50, restaurant_id: "" },
-  { id: "9", category_id: "cervejas", name: "Malzbier", price: 9.50, restaurant_id: "" },
-  { id: "10", category_id: "cervejas", name: "Originalzinha", price: 8.00, restaurant_id: "" },
-  { id: "11", category_id: "refrigerantes", name: "Coca-Cola 600ml", price: 7.50, restaurant_id: "" },
-  { id: "12", category_id: "refrigerantes", name: "Guaraná Antarctica", price: 7.50, restaurant_id: "" },
-  { id: "13", category_id: "suco", name: "Suco de Laranja", price: 9.00, restaurant_id: "" },
-  { id: "14", category_id: "caipirinha", name: "Caipirinha de Limão", price: 15.00, restaurant_id: "" },
-  { id: "15", category_id: "saladas", name: "Salada Caesar", price: 25.00, restaurant_id: "" },
-  { id: "16", category_id: "picanha", name: "Picanha ao Ponto", price: 89.90, restaurant_id: "" },
-  { id: "17", category_id: "file_mignon", name: "Filé Mignon", price: 79.90, restaurant_id: "" },
-  { id: "18", category_id: "massas", name: "Espaguete à Bolonhesa", price: 45.00, restaurant_id: "" },
-  { id: "19", category_id: "file_frango", name: "Filé de Frango Grelhado", price: 39.90, restaurant_id: "" },
-  { id: "20", category_id: "file_saint", name: "Filé de Saint Peter", price: 52.90, restaurant_id: "" },
-];
-
-const productCategories: ProductCategory[] = [
-  { id: "todas", name: "Todas", color: "bg-white", textColor: "text-black", restaurant_id: "" },
-  { id: "cervejas", name: "Cervejas", color: "bg-cyan-500", textColor: "text-white", restaurant_id: "" },
-  { id: "refrigerantes", name: "Refrigerantes e suco", color: "bg-teal-500", textColor: "text-white", restaurant_id: "" },
-  { id: "suco", name: "Suco de jarra", color: "bg-emerald-400", textColor: "text-white", restaurant_id: "" },
-  { id: "caipirinha", name: "Caipirinha", color: "bg-lime-400", textColor: "text-black", restaurant_id: "" },
-  { id: "saladas", name: "Saladas", color: "bg-amber-400", textColor: "text-black", restaurant_id: "" },
-  { id: "file_mignon", name: "Filé Mignon", color: "bg-orange-400", textColor: "text-black", restaurant_id: "" },
-  { id: "picanha", name: "Picanha", color: "bg-orange-500", textColor: "text-white", restaurant_id: "" },
-  { id: "file_frango", name: "Filé de Frango", color: "bg-rose-500", textColor: "text-white", restaurant_id: "" },
-  { id: "file_saint", name: "Filé de Saint Peter", color: "bg-pink-700", textColor: "text-white", restaurant_id: "" },
-  { id: "massas", name: "Massas", color: "bg-purple-600", textColor: "text-white", restaurant_id: "" },
-  { id: "pratos_kids", name: "Pratos kids", color: "bg-blue-400", textColor: "text-white", restaurant_id: "" },
-  { id: "lanche_file", name: "Lanche de Filé Mignon", color: "bg-slate-600", textColor: "text-white", restaurant_id: "" },
-  { id: "lanche_frango", name: "Lanche de Frango", color: "bg-teal-600", textColor: "text-white", restaurant_id: "" },
-  { id: "lanche_hamburger", name: "Lanche de hambúrguer", color: "bg-emerald-800", textColor: "text-white", restaurant_id: "" },
-  { id: "lanches_especiais", name: "Lanches especiais", color: "bg-lime-300", textColor: "text-black", restaurant_id: "" },
-  { id: "outros", name: "Outros", color: "bg-yellow-400", textColor: "text-black", restaurant_id: "" },
-];
-
 const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => {
   const [customerName, setCustomerName] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -829,4 +786,30 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
                 placeholder="Ex: Sem cebola, com cebolinha extra, bem passado, etc..."
                 value={localObservation}
                 onChange={(e) => setLocalObservation(e.target.value)}
-                className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-
+                className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none"
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={handleCloseModal}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAddWithObservation}>
+              Adicionar
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      {showExtrasModal && <ExtrasModal />}
+      {showObservationModal && <ObservationModal />}
+    </>
+  );
+};
+
+export default TableOrderDrawer;
