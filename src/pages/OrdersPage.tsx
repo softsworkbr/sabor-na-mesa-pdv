@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { 
   getOrders,
+  getOrderById,
   updateOrder,
   Order,
   OrderStatus
@@ -70,7 +70,6 @@ const OrdersPage = () => {
     queryKey: ['orders', selectedStatus],
     queryFn: async () => {
       const ordersData = await getOrders(selectedStatus || undefined);
-      // Add items count for each order
       const ordersWithDetails = await Promise.all(
         ordersData.map(async (order) => {
           const fullOrder = await getOrderById(order.id!);
