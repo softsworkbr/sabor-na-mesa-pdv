@@ -11,6 +11,7 @@ import OrdersPage from "./pages/OrdersPage";
 import MenuPage from "./pages/MenuPage";
 import UsersPage from "./pages/UsersPage";
 import PrintersPage from "./pages/PrintersPage";
+import SettingsPage from "./pages/SettingsPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -51,6 +52,7 @@ const AppRoutes = () => {
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/printers" element={<PrintersPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
