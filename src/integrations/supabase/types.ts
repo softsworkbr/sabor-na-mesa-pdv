@@ -63,11 +63,57 @@ export type Database = {
           },
         ]
       }
+      order_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          include_service_fee: boolean
+          order_id: string
+          payment_method_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          include_service_fee?: boolean
+          order_id: string
+          payment_method_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          include_service_fee?: boolean
+          order_id?: string
+          payment_method_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payments_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           created_at: string
           customer_name: string | null
           id: string
+          payment_status: string
           service_fee: number | null
           status: string
           table_id: string
@@ -78,6 +124,7 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           id?: string
+          payment_status?: string
           service_fee?: number | null
           status?: string
           table_id: string
@@ -88,6 +135,7 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           id?: string
+          payment_status?: string
           service_fee?: number | null
           status?: string
           table_id?: string
@@ -103,6 +151,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_methods: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       product_categories: {
         Row: {

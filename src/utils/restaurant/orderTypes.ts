@@ -1,4 +1,3 @@
-
 import { Product } from "./productTypes";
 
 export type OrderStatus = "active" | "completed" | "cancelled" | "pending";
@@ -82,4 +81,29 @@ export interface UpdateProductExtraProps {
   description?: string | null;
   category_id?: string | null;
   active?: boolean;
+}
+
+// Tipos para pagamentos
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  code: string;
+  active: boolean;
+}
+
+export interface OrderPayment {
+  id?: string;
+  order_id: string;
+  payment_method_id: string;
+  amount: number;
+  include_service_fee: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateOrderPaymentProps {
+  order_id: string;
+  payment_method_id: string;
+  amount: number;
+  include_service_fee?: boolean;
 }

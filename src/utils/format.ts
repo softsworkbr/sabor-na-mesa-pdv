@@ -1,3 +1,4 @@
+
 /**
  * Formata um valor numérico para o formato de moeda brasileira (R$)
  * @param value Valor a ser formatado

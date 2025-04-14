@@ -1,16 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Plus, Trash2, DollarSign, CreditCard as CreditCardIcon, Smartphone } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-
-// Função para formatação de moeda (R$)
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
+import { formatCurrency, parseCurrency } from "@/utils/format";
+import { supabase } from "@/integrations/supabase/client";
 
 export type PaymentMethod = {
   id: string;

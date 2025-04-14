@@ -64,7 +64,6 @@ import ObservationModal from "./modals/ObservationModal";
 import ExtrasModal from "./modals/ExtrasModal";
 import PaymentModal, { PaymentItem } from "./modals/PaymentModal";
 
-// Interface para a mesa
 interface Table {
   id: string;
   number: number;
@@ -348,7 +347,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
   const handleAddProduct = async (productId: string, withOptions = false) => {
     if (!productId || !table || !table.id) return;
     
-    // Primeiro buscar o produto pelos dados disponíveis
     const productsToSearch = filteredProducts?.length > 0 ? filteredProducts : [];
     const product = productsToSearch.find(p => p.id === productId);
     if (!product) {
@@ -356,15 +354,12 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
       return;
     }
     
-    // Limpar estados anteriores
     setSelectedProduct(null);
     setObservation("");
     setSelectedExtras([]);
 
-    // Definir o produto selecionado
     setSelectedProduct(product);
     
-    // Verificar se o produto tem extras disponíveis
     const productHasExtras = product.category?.has_extras || false;
     
     if (withOptions) {
@@ -924,32 +919,24 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     try {
       if (!orderId) return;
       
-      // Aqui você implementaria a lógica para salvar o pagamento no banco de dados
-      // Por exemplo:
-      /*
-      await supabase.from('payments').insert(
-        payments.map(payment => ({
+      for (const payment of payments) {
+        await supabase.from('order_payments').insert({
           order_id: orderId,
-          method: payment.method.id,
+          payment_method_id: payment.method.id,
           amount: payment.amount,
-          created_at: new Date().toISOString()
-        }))
-      );
+          include_service_fee: includeServiceFee
+        });
+      }
       
-      // Atualizar o status do pedido para pago
       await supabase.from('orders').update({ 
-        status: 'paid',
+        payment_status: 'paid',
         service_fee: includeServiceFee ? serviceFee : 0
       }).eq('id', orderId);
-      */
       
-      // Fechar a modal de pagamento
       setShowPaymentModal(false);
       
-      // Feedback para o usuário
       toast.success("Pagamento realizado com sucesso!");
       
-      // Fechar o drawer de pedido
       onClose();
       
     } catch (error) {

@@ -7,7 +7,9 @@ import {
   UpdateOrderProps, 
   CreateOrderItemProps, 
   UpdateOrderItemProps,
-  ProductExtra
+  ProductExtra,
+  OrderPayment,
+  PaymentMethod
 } from "./orderTypes";
 
 /**
@@ -393,6 +395,86 @@ export const calculateOrderTotal = async (orderId: string, serviceFeePercent: nu
     });
   } catch (error: any) {
     console.error('Error calculating order total:', error);
+    throw error;
+  }
+};
+
+/**
+ * Adiciona um pagamento ao pedido
+ */
+export const addOrderPayment = async (data: CreateOrderPaymentProps): Promise<OrderPayment> => {
+  try {
+    const { data: payment, error } = await supabase
+      .from('order_payments')
+      .insert({
+        order_id: data.order_id,
+        payment_method_id: data.payment_method_id,
+        amount: data.amount,
+        include_service_fee: data.include_service_fee !== undefined ? data.include_service_fee : true
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error(`Erro ao adicionar pagamento: ${error.message}`);
+      throw error;
+    }
+
+    return payment as OrderPayment;
+  } catch (error: any) {
+    console.error('Error adding order payment:', error);
+    throw error;
+  }
+};
+
+/**
+ * Obtém os métodos de pagamento disponíveis
+ */
+export const getPaymentMethods = async (): Promise<PaymentMethod[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('payment_methods')
+      .select('*')
+      .eq('active', true)
+      .order('name');
+
+    if (error) {
+      toast.error(`Erro ao buscar métodos de pagamento: ${error.message}`);
+      throw error;
+    }
+
+    return data as PaymentMethod[];
+  } catch (error: any) {
+    console.error('Error fetching payment methods:', error);
+    throw error;
+  }
+};
+
+/**
+ * Finaliza o pagamento de um pedido
+ */
+export const completeOrderPayment = async (
+  orderId: string, 
+  includeServiceFee: boolean = true,
+  serviceFeeAmount?: number
+): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('orders')
+      .update({ 
+        payment_status: 'paid',
+        service_fee: includeServiceFee && serviceFeeAmount ? serviceFeeAmount : 0
+      })
+      .eq('id', orderId);
+
+    if (error) {
+      toast.error(`Erro ao finalizar pagamento: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Pagamento finalizado com sucesso!');
+  } catch (error: any) {
+    console.error('Error completing order payment:', error);
     throw error;
   }
 };
