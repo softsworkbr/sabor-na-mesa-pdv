@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Printer, PrinterOff } from "lucide-react";
+import { Printer, AlertTriangle } from "lucide-react";
 import { getPrinterConfigsByRestaurant } from "@/utils/restaurant";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -31,7 +31,7 @@ const PrinterSelector = ({ value, onPrinterSelect }: PrinterSelectorProps) => {
       {printers.length > 0 ? (
         <Printer className="h-4 w-4 text-gray-500" />
       ) : (
-        <PrinterOff className="h-4 w-4 text-gray-500" />
+        <AlertTriangle className="h-4 w-4 text-red-500" />
       )}
       <Select value={value} onValueChange={onPrinterSelect}>
         <SelectTrigger className="w-[200px]">
