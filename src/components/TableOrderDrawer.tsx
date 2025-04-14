@@ -130,12 +130,6 @@ const productCategories: ProductCategory[] = [
   { id: "outros", name: "Outros", color: "bg-yellow-400", textColor: "text-black", restaurant_id: "" },
 ];
 
-interface TableOrderDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  table: TableOrderTable | null;
-}
-
 const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => {
   const [customerName, setCustomerName] = useState("");
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -832,7 +826,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
               </label>
               <textarea
                 id="observation"
-                placeholder="Ex: Sem cebola com creme, com cebolinha papai, bem passado, etc..."
+                placeholder="Ex: Sem cebola, com cebolinha extra, bem passado, etc..."
                 value={localObservation}
                 onChange={(e) => setLocalObservation(e.target.value)}
-                className="min-h-[80px] w-full resize
+                className="min-h-[80px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-
