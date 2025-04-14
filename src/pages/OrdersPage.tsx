@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   Plus, 
@@ -68,7 +68,21 @@ const OrdersPage = () => {
     refetch 
   } = useQuery({
     queryKey: ['orders', selectedStatus],
-    queryFn: () => getOrders(selectedStatus || undefined),
+    queryFn: async () => {
+      const ordersData = await getOrders(selectedStatus || undefined);
+      // Add items count for each order
+      const ordersWithDetails = await Promise.all(
+        ordersData.map(async (order) => {
+          const fullOrder = await getOrderById(order.id!);
+          return {
+            ...order,
+            itemsCount: fullOrder?.items?.length || 0,
+            total: fullOrder?.total_amount || 0
+          };
+        })
+      );
+      return ordersWithDetails;
+    },
   });
 
   const filteredOrders = orders?.filter(order => {
@@ -186,7 +200,7 @@ const OrdersPage = () => {
                       <div className="flex items-center gap-2 text-sm text-gray-600 flex-wrap">
                         <span>Cliente: {order.customer_name || "Não informado"}</span>
                         <span>•</span>
-                        <span>{order.items?.length || 0} itens</span>
+                        <span>{order.itemsCount} {order.itemsCount === 1 ? 'item' : 'itens'}</span>
                         <span>•</span>
                         <div className="flex items-center">
                           <Clock className="h-3 w-3 mr-1" />
@@ -197,8 +211,10 @@ const OrdersPage = () => {
                   </div>
                   <div className="flex items-center gap-3 w-full md:w-auto">
                     <div className="text-right md:text-left flex-1 md:flex-none">
-                      <p className="font-bold">R$ {order.total_amount?.toFixed(2).replace('.', ',') || '0,00'}</p>
-                      <Badge className={`bg-opacity-20 ${statusColors[order.status].replace('bg', 'bg-opacity-20 text')}`}>
+                      <p className="font-bold text-lg">
+                        R$ {order.total.toFixed(2).replace('.', ',')}
+                      </p>
+                      <Badge className={`${statusColors[order.status]} bg-opacity-20 text-${statusColors[order.status].replace('bg-', '')}`}>
                         {statusLabels[order.status]}
                       </Badge>
                     </div>
