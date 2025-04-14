@@ -854,10 +854,562 @@ const TableOrderDrawer = ({ isOpen, onClose, table }: TableOrderDrawerProps) => 
     );
   };
 
+  const paymentMethods: PaymentMethod[] = [
+    { id: "cash", name: "Dinheiro", icon: <Banknote className="h-5 w-5" />, color: "bg-green-600" },
+    { id: "pix", name: "PIX", icon: <QrCode className="h-5 w-5" />, color: "bg-blue-600" },
+    { id: "credit", name: "Cartão de Crédito", icon: <CreditCardIcon className="h-5 w-5" />, color: "bg-purple-600" },
+    { id: "debit", name: "Cartão de Débito", icon: <CreditCardIcon className="h-5 w-5" />, color: "bg-indigo-600" },
+    { id: "ticket", name: "Vale Refeição", icon: <Ticket className="h-5 w-5" />, color: "bg-yellow-600" },
+  ];
+
+  const PaymentModal = () => {
+    const handleCloseModal = () => {
+      setShowPaymentModal(false);
+      setPayments([]);
+      setCurrentPaymentMethod(null);
+      setCurrentPaymentAmount("");
+      setCashAmount("");
+      setChangeDue(0);
+    };
+    
+    const handleSelectPaymentMethod = (methodId: string) => {
+      setCurrentPaymentMethod(methodId);
+      
+      if (methodId === "cash") {
+        setCashAmount("");
+        setChangeDue(0);
+      }
+    };
+    
+    const handleAddPayment = () => {
+      if (!currentPaymentMethod) return;
+      
+      const amount = parseFloat(currentPaymentAmount || "0");
+      if (isNaN(amount) || amount <= 0) {
+        toast.error("Insira um valor válido");
+        return;
+      }
+      
+      const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0) + amount;
+      if (totalPaid > total) {
+        toast.error("O valor total excede o valor da conta");
+        return;
+      }
+      
+      setPayments(prev => [...prev, { methodId: currentPaymentMethod, amount }]);
+      setCurrentPaymentMethod(null);
+      setCurrentPaymentAmount("");
+    };
+    
+    const handleCashPayment = () => {
+      if (!currentPaymentMethod || currentPaymentMethod !== "cash") return;
+      
+      const cashValue = parseFloat(cashAmount || "0");
+      if (isNaN(cashValue) || cashValue <= 0) {
+        toast.error("Insira um valor válido");
+        return;
+      }
+      
+      const remainingToPay = total - payments.reduce((sum, p) => sum + p.amount, 0);
+      
+      if (cashValue < remainingToPay) {
+        setPayments(prev => [...prev, { methodId: "cash", amount: cashValue }]);
+        setCashAmount("");
+        setChangeDue(0);
+      } else {
+        setPayments(prev => [...prev, { methodId: "cash", amount: remainingToPay }]);
+        setChangeDue(cashValue - remainingToPay);
+      }
+      
+      setCurrentPaymentMethod(null);
+    };
+    
+    const handleRemovePayment = (index: number) => {
+      setPayments(prev => prev.filter((_, i) => i !== index));
+    };
+    
+    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const remaining = total - totalPaid;
+    
+    const getMethodName = (methodId: string) => {
+      return paymentMethods.find(m => m.id === methodId)?.name || methodId;
+    };
+    
+    const getMethodIcon = (methodId: string) => {
+      return paymentMethods.find(m => m.id === methodId)?.icon || null;
+    };
+    
+    const getMethodColor = (methodId: string) => {
+      return paymentMethods.find(m => m.id === methodId)?.color || "bg-gray-600";
+    };
+    
+    const handleCompletePayment = () => {
+      if (remaining > 0.01) {
+        toast.error("O pagamento ainda não foi concluído");
+        return;
+      }
+      
+      toast.success("Pagamento realizado com sucesso!");
+      handleCloseModal();
+      
+      // Here you would update the order status in the database
+    };
+    
+    if (!showPaymentModal) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div 
+          className="bg-white rounded-lg shadow-lg w-full max-w-md mx-4 p-4 md:p-6 max-h-[90vh] overflow-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="text-lg md:text-xl font-bold">Pagamento</h2>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-full" 
+              onClick={handleCloseModal}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-3 rounded-md">
+              <div className="flex justify-between">
+                <span className="font-medium">Subtotal:</span>
+                <span>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+              </div>
+              <div className="flex justify-between mt-1">
+                <span className="font-medium">Taxa de serviço (10%):</span>
+                <span>R$ {serviceFee.toFixed(2).replace('.', ',')}</span>
+              </div>
+              <div className="flex justify-between mt-2 text-lg font-bold">
+                <span>Total:</span>
+                <span>R$ {total.toFixed(2).replace('.', ',')}</span>
+              </div>
+            </div>
+            
+            {payments.length > 0 && (
+              <div className="border rounded-md p-3">
+                <h3 className="font-medium mb-2">Pagamentos:</h3>
+                <div className="space-y-2">
+                  {payments.map((payment, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`${getMethodColor(payment.methodId)} p-1 rounded-md mr-2 text-white`}>
+                          {getMethodIcon(payment.methodId)}
+                        </div>
+                        <span>{getMethodName(payment.methodId)}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <span className="font-medium mr-2">R$ {payment.amount.toFixed(2).replace('.', ',')}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-6 w-6 text-red-500 hover:text-red-700"
+                          onClick={() => handleRemovePayment(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="flex justify-between pt-2 border-t mt-2">
+                    <span className="font-medium">Total pago:</span>
+                    <span className="font-medium">R$ {totalPaid.toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="font-medium">Restante:</span>
+                    <span className={`font-medium ${remaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      R$ {remaining.toFixed(2).replace('.', ',')}
+                    </span>
+                  </div>
+                  
+                  {changeDue > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span className="font-medium">Troco:</span>
+                      <span className="font-medium">R$ {changeDue.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {remaining > 0 && (
+              <div className="border rounded-md p-3">
+                <h3 className="font-medium mb-2">Adicionar forma de pagamento:</h3>
+                
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {paymentMethods.map(method => (
+                    <Button
+                      key={method.id}
+                      variant={currentPaymentMethod === method.id ? "default" : "outline"}
+                      className={`flex flex-col items-center py-2 h-auto ${
+                        currentPaymentMethod === method.id ? method.color : ""
+                      }`}
+                      onClick={() => handleSelectPaymentMethod(method.id)}
+                    >
+                      {method.icon}
+                      <span className="text-xs mt-1">{method.name}</span>
+                    </Button>
+                  ))}
+                </div>
+                
+                {currentPaymentMethod && (
+                  <>
+                    {currentPaymentMethod === "cash" ? (
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <label className="text-sm">Valor recebido:</label>
+                          <div className="flex">
+                            <span className="bg-gray-100 px-2 flex items-center border-y border-l rounded-l-md">R$</span>
+                            <Input 
+                              type="number"
+                              value={cashAmount}
+                              onChange={(e) => {
+                                setCashAmount(e.target.value);
+                                const value = parseFloat(e.target.value);
+                                if (!isNaN(value) && value > 0) {
+                                  const diff = value - remaining;
+                                  setChangeDue(diff > 0 ? diff : 0);
+                                } else {
+                                  setChangeDue(0);
+                                }
+                              }}
+                              placeholder="0,00"
+                              className="rounded-l-none"
+                            />
+                          </div>
+                        </div>
+                        
+                        {parseFloat(cashAmount) > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span>Troco:</span>
+                            <span className={changeDue > 0 ? "text-green-600 font-medium" : "text-gray-500"}>
+                              R$ {changeDue.toFixed(2).replace('.', ',')}
+                            </span>
+                          </div>
+                        )}
+                        
+                        <Button 
+                          onClick={handleCashPayment}
+                          className="w-full"
+                          disabled={!cashAmount || parseFloat(cashAmount) <= 0}
+                        >
+                          Adicionar Pagamento em Dinheiro
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <label className="text-sm">Valor:</label>
+                          <div className="flex">
+                            <span className="bg-gray-100 px-2 flex items-center border-y border-l rounded-l-md">R$</span>
+                            <Input 
+                              type="number"
+                              value={currentPaymentAmount}
+                              onChange={(e) => setCurrentPaymentAmount(e.target.value)}
+                              placeholder={remaining.toFixed(2).replace('.', ',')}
+                              className="rounded-l-none"
+                            />
+                          </div>
+                        </div>
+                        <Button 
+                          onClick={handleAddPayment}
+                          className="w-full"
+                          disabled={!currentPaymentAmount || parseFloat(currentPaymentAmount) <= 0}
+                        >
+                          Adicionar Pagamento
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-end gap-2 mt-4">
+            <Button 
+              variant="outline" 
+              onClick={handleCloseModal}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleCompletePayment}
+              className="bg-primary hover:bg-primary/90"
+              disabled={remaining > 0.01}
+            >
+              Concluir Pagamento
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (!isOpen) return null;
+
+  const Component = isMobile ? Drawer : Dialog;
+  const ComponentContent = isMobile ? DrawerContent : DialogContent;
+  const ComponentHeader = isMobile ? DrawerHeader : DialogHeader;
+  const ComponentTitle = isMobile ? DrawerTitle : DialogTitle;
+
   return (
-    <div>
-      {/* Existing component JSX */}
-    </div>
+    <>
+      <Component open={isOpen} onOpenChange={onClose}>
+        <ComponentContent className={isMobile ? "h-[90vh]" : "max-w-3xl max-h-[90vh]"}>
+          <ComponentHeader>
+            <ComponentTitle>
+              Mesa {table?.number} - {table?.status === "active" ? "Em atendimento" : ""}
+            </ComponentTitle>
+          </ComponentHeader>
+          
+          <div className="flex flex-col h-full">
+            <div className="p-4 pb-0">
+              <label className="text-sm font-medium mb-1 block">Cliente:</label>
+              <Input 
+                placeholder="Nome do cliente (opcional)" 
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                disabled={isTableBlocked}
+              />
+            </div>
+            
+            <Tabs defaultValue="order" className="flex-grow flex flex-col">
+              <div className="px-4 border-b">
+                <TabsList className="w-full">
+                  <TabsTrigger 
+                    value="order" 
+                    className="flex-1"
+                    onClick={() => setCurrentStep("order")}
+                  >
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Pedido
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="products" 
+                    className="flex-1"
+                    onClick={() => setCurrentStep("products")}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Produtos
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              
+              <TabsContent value="order" className="flex-grow flex flex-col p-0 overflow-hidden">
+                <div className="p-4 space-y-4 flex-grow overflow-auto">
+                  {loading ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                    </div>
+                  ) : orderItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <ShoppingCart className="h-12 w-12 text-gray-300 mb-3" />
+                      <h3 className="text-lg font-medium text-gray-500">Nenhum item adicionado</h3>
+                      <p className="text-sm text-gray-400 mt-1">
+                        Adicione itens na aba "Produtos"
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {orderItems.map((item) => (
+                        <OrderProduct 
+                          key={item.id} 
+                          item={item}
+                          onRemove={() => item.id && handleRemoveProduct(item.id)}
+                          onChangeQuantity={(quantity) => item.id && handleChangeQuantity(item.id, quantity)}
+                          disabled={isTableBlocked}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {orderItems.length > 0 && (
+                  <div className="border-t p-4 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm">Subtotal:</span>
+                      <span className="font-medium">R$ {subtotal.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm">Taxa de serviço (10%):</span>
+                      <span className="font-medium">R$ {serviceFee.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium">Total:</span>
+                      <span className="font-bold">R$ {total.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                    
+                    <div className="flex justify-between gap-2 mt-4">
+                      <Button
+                        variant={isTableBlocked ? "outline" : "secondary"}
+                        onClick={handleToggleBlockTable}
+                        className={isTableBlocked ? "text-green-600" : "text-amber-600"}
+                      >
+                        {isTableBlocked ? "Desbloquear Mesa" : "Bloquear Mesa"}
+                      </Button>
+                      <Button
+                        className="bg-pos-primary hover:bg-pos-primary/90"
+                        onClick={() => setShowPaymentModal(true)}
+                      >
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Pagamento
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="products" className="flex-grow flex flex-col p-0 overflow-hidden">
+                <div className="p-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input 
+                      placeholder="Buscar produto..." 
+                      className="pl-9"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      disabled={isLoadingProducts}
+                    />
+                  </div>
+                </div>
+                
+                <div className="px-4 flex items-center gap-2 overflow-x-auto pb-2">
+                  <div className="flex gap-2">
+                    <Button 
+                      variant={viewMode === "grid" ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => setViewMode("grid")}
+                    >
+                      <Grid3X3 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant={viewMode === "list" ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 px-2"
+                      onClick={() => setViewMode("list")}
+                    >
+                      <List className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="border-l h-8 mx-2"></div>
+                  
+                  <div className="flex gap-1 overflow-x-auto pb-1">
+                    {categoriesToUse.map((category) => (
+                      <Button
+                        key={category.id}
+                        variant={activeCategory === category.id ? "default" : "outline"}
+                        size="sm"
+                        className={`h-8 whitespace-nowrap ${
+                          activeCategory === category.id 
+                            ? `${category.color} ${category.textColor}` 
+                            : ""
+                        }`}
+                        onClick={() => setActiveCategory(category.id)}
+                      >
+                        {category.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                {isLoadingProducts ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                  </div>
+                ) : filteredProducts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <h3 className="text-lg font-medium text-gray-500">Nenhum produto encontrado</h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Tente outra categoria ou termo de busca
+                    </p>
+                  </div>
+                ) : viewMode === "grid" ? (
+                  <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2 overflow-auto flex-grow">
+                    {filteredProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className="border rounded-md p-2 cursor-pointer hover:bg-gray-50 transition-colors flex flex-col"
+                        onClick={() => handleAddProduct(product.id, true)}
+                      >
+                        <div className="font-medium line-clamp-2 text-sm mb-1">{product.name}</div>
+                        <div className="text-sm text-gray-500 mt-auto">R$ {product.price.toFixed(2).replace('.', ',')}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-2 overflow-auto flex-grow">
+                    {Object.entries(productsByCategory).map(([categoryId, products]) => {
+                      const category = categoriesToUse.find(c => c.id === categoryId);
+                      return (
+                        <div key={categoryId} className="space-y-1">
+                          {activeCategory === "todas" && (
+                            <div className={`${category?.color || 'bg-gray-200'} ${category?.textColor || 'text-gray-800'} px-2 py-1 rounded text-sm font-medium`}>
+                              {category?.name || "Outros"}
+                            </div>
+                          )}
+                          <div className="space-y-1">
+                            {products.map((product) => (
+                              <div
+                                key={product.id}
+                                className="border rounded-md p-2 cursor-pointer hover:bg-gray-50 transition-colors"
+                              >
+                                <div className="flex justify-between gap-2">
+                                  <div className="font-medium">{product.name}</div>
+                                  <div className="text-gray-500">R$ {product.price.toFixed(2).replace('.', ',')}</div>
+                                </div>
+                                <div className="flex justify-end gap-2 mt-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 px-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddProduct(product.id, true);
+                                    }}
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Observações
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-2"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAddProduct(product.id);
+                                    }}
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Adicionar
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </ComponentContent>
+      </Component>
+
+      <ExtrasModal />
+      <ObservationModal />
+      <PaymentModal />
+    </>
   );
 };
 
