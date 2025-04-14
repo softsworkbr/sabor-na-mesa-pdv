@@ -35,7 +35,10 @@ export type {
   UpdateOrderProps,
   CreateOrderItemProps,
   UpdateOrderItemProps,
-  ProductExtra as OrderProductExtra
+  ProductExtra as OrderProductExtra,
+  PaymentMethod,
+  OrderPayment,
+  CreateOrderPaymentProps
 } from './orderTypes';
 
 // Export restaurant management functions
@@ -73,5 +76,8 @@ export {
   removeOrderItem,
   completeOrder,
   cancelOrder,
-  calculateOrderTotal
+  calculateOrderTotal,
+  addOrderPayment,
+  getPaymentMethods,
+  completeOrderPayment
 } from './orderManagement';

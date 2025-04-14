@@ -32,4 +32,5 @@ export interface TableOrderTable {
   id: string;  // Changed from number to string to make it compatible with UUID
   number: number;
   status: TableStatus;
+  capacity?: number;  // Added the capacity property to fix the type error
 }

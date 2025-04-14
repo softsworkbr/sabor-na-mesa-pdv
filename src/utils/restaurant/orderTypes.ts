@@ -1,3 +1,4 @@
+
 import { Product } from "./productTypes";
 
 export type OrderStatus = "active" | "completed" | "cancelled" | "pending";

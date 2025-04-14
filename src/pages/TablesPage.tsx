@@ -430,7 +430,8 @@ const TablesPage = () => {
         table={selectedTable ? {
           id: selectedTable.id.toString(),
           number: selectedTable.number,
-          status: selectedTable.status
+          status: selectedTable.status,
+          capacity: selectedTable.occupants || undefined
         } as TableOrderTable : null} 
       />
     </div>
