@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,7 +12,7 @@ import UsersPage from "./pages/UsersPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import React from "react"; // Adding explicit React import
+import React from "react";
 
 // ProtectedRoute component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -49,6 +48,7 @@ const AppRoutes = () => {
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/printers" element={<PrintersPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

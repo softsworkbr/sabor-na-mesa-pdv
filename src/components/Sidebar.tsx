@@ -9,7 +9,8 @@ import {
   Settings, 
   CreditCard, 
   BarChart3, 
-  Layers 
+  Layers,
+  Printer
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -22,6 +23,7 @@ const Sidebar = () => {
     { name: "Mesas", icon: Layers, to: "/tables" },
     { name: "Cardápio", icon: Utensils, to: "/menu" },
     { name: "Usuários", icon: Users, to: "/users" },
+    { name: "Impressoras", icon: Printer, to: "/printers" },
     { name: "Clientes", icon: Users, to: "/customers" },
     { name: "Pagamentos", icon: CreditCard, to: "/payments" },
     { name: "Relatórios", icon: BarChart3, to: "/reports" },
