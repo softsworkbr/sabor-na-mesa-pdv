@@ -38,7 +38,7 @@ import {
   removeOrderItem,
   addOrderPayment,
 } from "@/utils/restaurant/orderManagement";
-import { 
+import {
   updateTable,
   getOrderByTableId,
 } from "@/utils/restaurant";
@@ -64,6 +64,8 @@ import {
 import ObservationModal from "./modals/ObservationModal";
 import ExtrasModal from "./modals/ExtrasModal";
 import PaymentModal, { PaymentItem } from "./modals/PaymentModal";
+import PrinterSelectorModal from "./modals/PrinterSelectorModal";
+import axios from "axios";
 
 interface Table {
   id: string;
@@ -102,6 +104,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
   const [availableExtras, setAvailableExtras] = useState<ProductExtra[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPrinterSelectorModal, setShowPrinterSelectorModal] = useState(false);
+  const [selectedPrinters, setSelectedPrinters] = useState<string[]>([]);
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
 
@@ -128,30 +132,30 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         .select('*')
         .order('sort_order', { ascending: true })
         .eq('active', true);
-      
+
       if (categoriesError) throw categoriesError;
-      
+
       const { data: products, error: productsError } = await supabase
         .from('products')
         .select('*, product_categories(*)')
         .eq('active', true);
-      
+
       if (productsError) throw productsError;
-      
+
       const productsWithCategories = products.map((product) => ({
         ...product,
         category: product.product_categories
       }));
-      
-      const allCategory = { 
-        id: "todas", 
-        name: "Todas", 
-        color: "bg-white", 
-        textColor: "text-black", 
-        restaurant_id: "", 
-        active: true 
+
+      const allCategory = {
+        id: "todas",
+        name: "Todas",
+        color: "bg-white",
+        textColor: "text-black",
+        restaurant_id: "",
+        active: true
       };
-      
+
       setRealCategories([allCategory, ...(categories || [])]);
       setRealProducts(productsWithCategories);
     } catch (error: any) {
@@ -164,18 +168,18 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
   const loadTableOrder = async () => {
     if (!table || !table.id) return;
-    
+
     setLoading(true);
     try {
       const tableId = table.id;
-      
+
       const order = await getOrderByTableId(tableId);
-      
+
       if (order) {
         setCurrentOrder(order);
         setOrderId(order.id);
         setCustomerName(order.customer_name || "");
-        
+
         if (order.items && order.items.length > 0) {
           setOrderItems(order.items);
         } else {
@@ -210,19 +214,19 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
   const saveOrder = async () => {
     if (!table || !table.id) return null;
-    
+
     setLoading(true);
     try {
       let order: Order;
-      
+
       if (!currentOrder || !orderId) {
         const tableId = table.id;
-        
+
         order = await createOrder({
           table_id: tableId,
           customer_name: customerName || undefined,
         });
-        
+
         setCurrentOrder(order);
         setOrderId(order.id);
 
@@ -230,7 +234,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
           await updateTable(tableId, { status: "active" });
         }
       }
-      
+
       toast.success(currentOrder ? "Pedido atualizado" : "Pedido criado com sucesso");
       return orderId || order?.id;
     } catch (error) {
@@ -244,12 +248,12 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
   const handleAddProductWithObservation = async (productObservation?: string) => {
     if (!selectedProduct) return;
-    
+
     const extrasToSave = [...selectedExtras];
-    
+
     console.log("Adding product with observation:", productObservation || observation);
     console.log("Adding product with extras:", extrasToSave);
-    
+
     try {
       await addProductToOrder(selectedProduct, productObservation || observation, extrasToSave);
       setShowObservationModal(false);
@@ -268,12 +272,12 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       toast.error("Esta mesa está bloqueada para fechamento. Não é possível adicionar itens.");
       return;
     }
-    
+
     try {
       console.log("Adding product to order:", product.name);
       console.log("With observation:", productObservation);
       console.log("With extras:", extras);
-      
+
       let currentOrderId = orderId;
       if (!currentOrderId) {
         currentOrderId = await saveOrder();
@@ -294,21 +298,21 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
           .sort()
           .join(',');
       };
-      
+
       const currentExtrasKey = generateExtrasKey(extras);
-      
+
       const existingItemIndex = orderItems.findIndex(item => {
         const basicMatch = item.product_id === product.id && item.observation === productObservation;
-        
+
         let extrasMatch = true;
         if (extras.length > 0 || (item.extras && item.extras.length > 0)) {
-          const itemExtrasKey = item.extras 
+          const itemExtrasKey = item.extras
             ? generateExtrasKey(item.extras)
             : '';
-          
+
           extrasMatch = itemExtrasKey === currentExtrasKey;
         }
-        
+
         return basicMatch && extrasMatch;
       });
 
@@ -319,7 +323,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         const updatedItem = await updateOrderItem(existingItem.id, {
           quantity: (existingItem.quantity || 1) + 1
         });
-        
+
         const updatedItems = [...orderItems];
         updatedItems[existingItemIndex] = updatedItem;
         setOrderItems(updatedItems);
@@ -333,7 +337,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
           observation: productObservation || null,
           extras: extras.length > 0 ? extras : null
         });
-        
+
         console.log("New item added with extras:", newItem);
         setOrderItems([...orderItems, newItem]);
       }
@@ -348,27 +352,27 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
   const handleAddProduct = async (productId: string, withOptions = false) => {
     if (!productId || !table || !table.id) return;
-    
+
     const productsToSearch = filteredProducts?.length > 0 ? filteredProducts : [];
     const product = productsToSearch.find(p => p.id === productId);
     if (!product) {
       toast.error("Produto não encontrado");
       return;
     }
-    
+
     setSelectedProduct(null);
     setObservation("");
     setSelectedExtras([]);
 
     setSelectedProduct(product);
-    
+
     const productHasExtras = product.category?.has_extras || false;
-    
+
     if (withOptions) {
       if (productHasExtras) {
         const extras = await fetchProductExtras(productId);
         setAvailableExtras(extras);
-        
+
         setShowExtrasModal(true);
       } else {
         setShowObservationModal(true);
@@ -383,13 +387,13 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
     try {
       await removeOrderItem(itemId);
-      
+
       setOrderItems(orderItems.filter(item => item.id !== itemId));
-      
+
       const newTotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       const serviceFee = newTotal * 0.1;
       const total = newTotal + serviceFee;
-      
+
       toast.success("Produto removido com sucesso");
     } catch (error) {
       console.error("Error removing product:", error);
@@ -409,8 +413,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
     try {
       const updatedItem = await updateOrderItem(itemId, { quantity });
-      
-      setOrderItems(orderItems.map(item => 
+
+      setOrderItems(orderItems.map(item =>
         item.id === itemId ? { ...item, quantity } : item
       ));
     } catch (error) {
@@ -426,9 +430,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       const newStatus = isTableBlocked ? "active" : "blocked";
       await updateTable(table.id, { status: newStatus });
       setIsTableBlocked(!isTableBlocked);
-      
-      toast.success(isTableBlocked 
-        ? "Mesa desbloqueada com sucesso" 
+
+      toast.success(isTableBlocked
+        ? "Mesa desbloqueada com sucesso"
         : "Mesa bloqueada para fechamento");
     } catch (error) {
       console.error("Error toggling table block status:", error);
@@ -439,7 +443,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
   const handleToggleExtra = React.useCallback((extra: ProductExtra) => {
     setSelectedExtras(prevExtras => {
       const isSelected = prevExtras.some(e => e.id === extra.id);
-      
+
       if (isSelected) {
         return prevExtras.filter(e => e.id !== extra.id);
       } else {
@@ -491,7 +495,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                     {orderId ? `Pedido #${orderId.substring(0, 6)}` : "Novo Pedido"}
                   </div>
                   <div className="text-xs md:text-sm text-gray-500">
-                    {currentOrder?.created_at 
+                    {currentOrder?.created_at
                       ? `Iniciado em ${new Date(currentOrder.created_at).toLocaleDateString()} às ${new Date(currentOrder.created_at).toLocaleTimeString().substring(0, 5)}`
                       : `${new Date().toLocaleDateString()} às ${new Date().toLocaleTimeString().substring(0, 5)}`
                     }
@@ -509,7 +513,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                 onClick={() => setCurrentStep("products")}
                 disabled={isTableBlocked}
               >
-                <ShoppingCart className="mr-1 md:mr-2 h-4 w-4" /> 
+                <ShoppingCart className="mr-1 md:mr-2 h-4 w-4" />
                 {!isSmallMobile && "Produtos"}
               </Button>
             </div>
@@ -538,14 +542,14 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-3 md:mt-4">
-                    <input 
-                      type="checkbox" 
-                      id="blockOrder" 
+                    <input
+                      type="checkbox"
+                      id="blockOrder"
                       checked={isTableBlocked}
                       onChange={handleToggleBlockTable}
                     />
-                    <label 
-                      htmlFor="blockOrder" 
+                    <label
+                      htmlFor="blockOrder"
                       className={`${isTableBlocked ? "text-red-600 font-semibold" : ""} text-sm md:text-base`}
                     >
                       {isSmallMobile ? "Bloquear Mesa" : "Bloquear Pedido para Fechamento (F8)"}
@@ -617,31 +621,32 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
           </div>
 
           <div className="mt-auto border-t p-2 md:p-4 flex flex-col md:flex-row justify-between items-center gap-2">
-            <Button 
-              variant="outline" 
-              onClick={onClose} 
+            <Button
+              variant="outline"
+              onClick={onClose}
               className="w-full md:w-auto text-sm"
               size={isMobile ? "sm" : "default"}
             >
-              <ArrowLeft className="mr-1 md:mr-2 h-4 w-4" /> 
+              <ArrowLeft className="mr-1 md:mr-2 h-4 w-4" />
               {isSmallMobile ? "Voltar" : "Voltar (ESC)"}
             </Button>
 
             <div className="flex gap-2 w-full md:w-auto">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="text-sm flex-1 md:flex-initial"
                 size={isMobile ? "sm" : "default"}
+                onClick={handleOpenPrinterSelector}
               >
-                <Printer className="mr-1 md:mr-2 h-4 w-4" /> 
+                <Printer className="mr-1 md:mr-2 h-4 w-4" />
                 {isSmallMobile ? "Imprimir" : "Imprimir (F9)"}
               </Button>
-              <Button 
+              <Button
                 className={`${isTableBlocked ? "bg-red-800 hover:bg-red-900" : "bg-gray-800 hover:bg-gray-900"} text-sm flex-1 md:flex-initial`}
                 size={isMobile ? "sm" : "default"}
                 onClick={handlePayment}
               >
-                <CreditCard className="mr-1 md:mr-2 h-4 w-4" /> 
+                <CreditCard className="mr-1 md:mr-2 h-4 w-4" />
                 {isSmallMobile ? "Pagamento" : "PAGAMENTO (F5)"}
               </Button>
             </div>
@@ -652,7 +657,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
           <div className="bg-gray-100 p-3 md:p-4 flex flex-col md:flex-row gap-2 md:items-center md:justify-between border-b">
             <div className="flex items-center">
               <Button variant="outline" onClick={() => setCurrentStep("order")} className="mr-2" size={isMobile ? "sm" : "default"}>
-                <ArrowLeft className="h-4 w-4 mr-1 md:mr-2" /> 
+                <ArrowLeft className="h-4 w-4 mr-1 md:mr-2" />
                 <span className={isSmallMobile ? "hidden" : ""}>Voltar</span>
               </Button>
               <h2 className="text-base md:text-lg font-bold">Produtos</h2>
@@ -703,13 +708,13 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-[280px] max-h-[50vh] overflow-y-auto">
                     {categoriesToUse.map((category) => (
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         key={category.id}
                         onClick={() => setActiveCategory(category.id)}
                         className={activeCategory === category.id ? "bg-accent" : ""}
                       >
-                        <div 
-                          className={`w-3 h-3 mr-2 rounded-full ${category.color || "bg-gray-200"}`} 
+                        <div
+                          className={`w-3 h-3 mr-2 rounded-full ${category.color || "bg-gray-200"}`}
                         />
                         <span>{category.name}</span>
                       </DropdownMenuItem>
@@ -841,12 +846,12 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         </div>
       )}
 
-      <ObservationModal 
+      <ObservationModal
         showModal={showObservationModal}
         onClose={() => setShowObservationModal(false)}
         onAdd={(localObservation) => {
           setObservation(localObservation);
-          
+
           if (selectedProduct) {
             addProductToOrder(selectedProduct, localObservation, selectedExtras)
               .then(() => {
@@ -865,8 +870,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         selectedExtras={selectedExtras}
         initialObservation={observation}
       />
-      
-      <ExtrasModal 
+
+      <ExtrasModal
         showModal={showExtrasModal}
         onClose={() => {
           setShowExtrasModal(false);
@@ -874,7 +879,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         }}
         onAddWithExtras={(extrasToSave) => {
           setSelectedExtras(extrasToSave);
-          
+
           if (selectedProduct) {
             addProductToOrder(selectedProduct, "", extrasToSave)
               .then(() => {
@@ -897,13 +902,20 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         availableExtras={availableExtras}
         initialSelectedExtras={selectedExtras}
       />
-      
+
       <PaymentModal
         showModal={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         onComplete={handleCompletePayment}
         totalAmount={total}
         serviceFee={serviceFee}
+      />
+      <PrinterSelectorModal
+        showModal={showPrinterSelectorModal}
+        onClose={() => setShowPrinterSelectorModal(false)}
+        onPrinterSelect={handlePrinterSelect}
+        onPrint={handlePrint}
+        selectedPrinter={selectedPrinters[0]}
       />
     </>
   );
@@ -913,17 +925,17 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       toast.error("É necessário criar um pedido antes de realizar o pagamento");
       return;
     }
-    
+
     setShowPaymentModal(true);
   };
-  
+
   const handleCompletePayment = async (payments: PaymentItem[], includeServiceFee: boolean) => {
     try {
       if (!orderId || !table) return;
-      
+
       console.log("Processando pagamentos:", payments);
       console.log("Incluir taxa de serviço:", includeServiceFee);
-      
+
       // Usar as funções da API para salvar os pagamentos
       for (const payment of payments) {
         try {
@@ -939,19 +951,19 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
           throw paymentError;
         }
       }
-      
+
       try {
         console.log("Atualizando status do pedido:", orderId);
         // Atualizar o status do pedido para completado, mas manter a referência à mesa
         const { error: orderUpdateError } = await supabase
           .from('orders')
-          .update({ 
+          .update({
             status: 'completed',  // Atualizar status do pedido para completado
             payment_status: 'paid',
             service_fee: includeServiceFee ? serviceFee : 0  // Atualizar a taxa de serviço
           })
           .eq('id', orderId);
-          
+
         if (orderUpdateError) {
           console.error("Erro ao atualizar status do pedido:", orderUpdateError);
           throw orderUpdateError;
@@ -960,50 +972,292 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         console.error("Erro ao atualizar pedido:", orderError);
         throw orderError;
       }
-      
+
       try {
         console.log("Liberando mesa:", table.id);
         // Liberar a mesa (atualizar status para "free")
-        await updateTable(table.id, { 
+        await updateTable(table.id, {
           status: "free"
         });
       } catch (tableError) {
         console.error("Erro ao liberar mesa:", tableError);
         throw tableError;
       }
-      
+
       setShowPaymentModal(false);
-      
+
       toast.success("Pagamento realizado com sucesso! Mesa liberada.");
-      
+
       onClose();
-      
+
       // Recarregar as mesas para atualizar a interface
       if (typeof onTableStatusChange === 'function') {
         onTableStatusChange();
       }
-      
+
     } catch (error: any) {
       console.error("Erro ao processar pagamento:", error);
       toast.error(`Erro ao processar pagamento: ${error?.message || 'Erro desconhecido'}`);
     }
   };
 
-  const CategoryProductGroup = ({ 
-    category, 
-    products, 
+  const handlePrinterSelect = (printerName: string) => {
+    // We still keep this function for backward compatibility
+    // but we don't need to update the state here anymore
+    // as the modal component now manages the selected printers
+  };
+
+  const handleOpenPrinterSelector = () => {
+    setShowPrinterSelectorModal(true);
+  };
+
+  const handlePrint = async (printerNames: string[]) => {
+    if (printerNames.length > 0 && currentOrder) {
+      try {
+        // Show loading toast
+        const loadingToast = toast.loading(`Enviando impressão para ${printerNames.length} impressora${printerNames.length > 1 ? 's' : ''}...`);
+
+        // Generate the print text for the order
+        const printText = generatePrintText(currentOrder, orderItems, table);
+
+        // Create an array of promises for each printer
+        const printPromises = printerNames.map(printerName =>
+          sendPrintRequest(printerName, printText)
+        );
+
+        // Wait for all print requests to complete
+        const results = await Promise.all(printPromises);
+
+        // Count successful prints
+        const successCount = results.filter(result => result.success).length;
+
+        // Dismiss loading toast
+        toast.dismiss(loadingToast);
+
+        // Show success or partial success message
+        if (successCount === printerNames.length) {
+          toast.success(`Pedido impresso com sucesso em ${successCount} impressora${successCount > 1 ? 's' : ''}`);
+        } else if (successCount > 0) {
+          toast.warning(`Pedido impresso em ${successCount} de ${printerNames.length} impressoras`);
+        } else {
+          toast.error("Falha ao imprimir em todas as impressoras");
+        }
+
+        // Save the selected printers for future use
+        setSelectedPrinters(printerNames);
+      } catch (error) {
+        console.error("Error printing:", error);
+        toast.error("Erro ao enviar impressão");
+      }
+    } else if (printerNames.length === 0) {
+      toast.error("Selecione pelo menos uma impressora para imprimir");
+    } else if (!currentOrder) {
+      toast.error("Não há pedido para imprimir");
+    }
+  };
+
+  // Function to generate the print text for the order
+  const generatePrintText = (order: Order, items: OrderItem[], table: Table | null) => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('pt-BR');
+    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    // Define receipt width and price column width
+    const RECEIPT_WIDTH = 32; // Total width of the receipt in characters
+    const PRICE_WIDTH = 10;   // Width reserved for the price column
+
+    // Helper function to format text with proper alignment
+    const formatLine = (leftText: string, rightText: string) => {
+      // If the left text is too long, wrap it
+      if (leftText.length > RECEIPT_WIDTH - PRICE_WIDTH) {
+        // Split the left text into multiple lines
+        const lines: string[] = [];
+        let currentLine = leftText;
+
+        while (currentLine.length > RECEIPT_WIDTH - PRICE_WIDTH) {
+          // Find the last space before the cutoff point
+          const cutPoint = currentLine.substring(0, RECEIPT_WIDTH - PRICE_WIDTH).lastIndexOf(' ');
+
+          // If no space found, force cut at the max length
+          const splitPoint = cutPoint > 0 ? cutPoint : RECEIPT_WIDTH - PRICE_WIDTH;
+
+          lines.push(currentLine.substring(0, splitPoint));
+          currentLine = currentLine.substring(splitPoint + 1);
+        }
+
+        // Add the remaining text
+        if (currentLine.length > 0) {
+          lines.push(currentLine);
+        }
+
+        // Format the first line with the price
+        const result = [
+          `${lines[0]}${' '.repeat(RECEIPT_WIDTH - lines[0].length - rightText.length)}${rightText}`
+        ];
+
+        // Add the remaining lines with proper indentation
+        for (let i = 1; i < lines.length; i++) {
+          result.push(`   ${lines[i]}`); // Add indentation for wrapped lines
+        }
+
+        return result.join('\n');
+      } else {
+        // Simple case: left text fits on one line
+        return `${leftText}${' '.repeat(RECEIPT_WIDTH - leftText.length - rightText.length)}${rightText}`;
+      }
+    };
+
+    let text = "";
+
+    // Header
+    text += "================================\n";
+    text += "        PEDIDO PARA COZINHA       \n";
+    text += `           Pedido #${order.id?.substring(0, 8) || ''}            \n`;
+    text += "================================\n";
+    text += `Data: ${dateStr} ${timeStr}    Mesa: ${table?.number || '-'}\n\n`;
+
+    // Customer name if available
+    if (customerName) {
+      text += `Cliente: ${customerName}\n\n`;
+    }
+
+    // Items
+    text += "ITENS DO PEDIDO:\n";
+    text += "--------------------------------\n";
+
+    items.forEach(item => {
+      // Item name and price
+      const itemText = `${item.quantity}x ${item.name}`;
+      const priceText = `R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}`;
+
+      text += formatLine(itemText, priceText) + '\n';
+
+      // Observation if available
+      if (item.observation) {
+        text += `   OBS: ${item.observation}\n`;
+      }
+
+      // Extras if available
+      if (item.extras && item.extras.length > 0) {
+        item.extras.forEach(extra => {
+          const extraText = `   +${extra.name}`;
+          const extraPriceText = `R$ ${(extra.price * item.quantity).toFixed(2).replace('.', ',')}`;
+
+          text += formatLine(extraText, extraPriceText) + '\n';
+        });
+      }
+
+      // Add a blank line between items
+      text += "\n";
+    });
+
+    // Footer
+    text += "--------------------------------\n";
+
+    // Order observation if available
+    if (order.customer_name) {
+      text += `Obs: Cliente ${order.customer_name}\n`;
+    }
+    
+    // Calculate and add the total
+    const subtotal = items.reduce((sum, item) => {
+      // Add the base item price
+      let itemTotal = item.price * item.quantity;
+      
+      // Add extras if any
+      if (item.extras && item.extras.length > 0) {
+        itemTotal += item.extras.reduce((extraSum, extra) => 
+          extraSum + (extra.price * item.quantity), 0);
+      }
+      
+      return sum + itemTotal;
+    }, 0);
+    
+    // Add a blank line before totals
+    text += "\n";
+    
+    // Format the subtotal
+    const subtotalText = "SUBTOTAL:";
+    const subtotalPriceText = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+    text += formatLine(subtotalText, subtotalPriceText) + '\n';
+    
+    // Add service fee if applicable
+    if (order.service_fee && order.service_fee > 0) {
+      const serviceFeeText = "TAXA DE SERVIÇO (10%):";
+      const serviceFeePriceText = `R$ ${order.service_fee.toFixed(2).replace('.', ',')}`;
+      text += formatLine(serviceFeeText, serviceFeePriceText) + '\n';
+      
+      // Add total with service fee
+      const totalText = "TOTAL:";
+      const totalPriceText = `R$ ${(subtotal + order.service_fee).toFixed(2).replace('.', ',')}`;
+      text += formatLine(totalText, totalPriceText) + '\n';
+    }
+    
+    text += "================================\n";
+
+    return text;
+  };
+
+  // Function to send the print request to the server
+  const sendPrintRequest = async (printerName: string, text: string) => {
+    try {
+      // Find the printer configuration for this printer
+      const { data: printerConfig, error: printerError } = await supabase
+        .from('printer_configs')
+        .select('*')
+        .eq('windows_printer_name', printerName)
+        .single();
+
+      if (printerError) {
+        console.error(`Error fetching printer config for ${printerName}:`, printerError);
+        return { success: false, printerName, error: printerError };
+      }
+
+      if (!printerConfig.ip_address) {
+        console.error(`No IP address configured for printer ${printerName}`);
+        return { success: false, printerName, error: 'No IP address configured' };
+      }
+
+      // Construct the URL using the printer's IP address and endpoint (or default to /print if not specified)
+      const endpoint = printerConfig.endpoint || '/print';
+      const url = `http://${printerConfig.ip_address}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+
+      console.log(`Sending print request to ${url} for printer ${printerName}`);
+
+      const response = await axios.post(url, {
+        printerName,
+        text,
+        options: {
+          align: "left",
+          font: "A",
+          doubleSize: false,
+          bold: true,
+          beep: true
+        }
+      });
+
+      return { success: true, printerName, response: response.data };
+    } catch (error) {
+      console.error(`Error printing to ${printerName}:`, error);
+      return { success: false, printerName, error };
+    }
+  };
+
+  const CategoryProductGroup = ({
+    category,
+    products,
     onAddProduct,
     viewMode,
-    isMobile 
-  }: { 
-    category?: ProductCategory; 
+    isMobile
+  }: {
+    category?: ProductCategory;
     products: Product[];
     onAddProduct: (id: string, withOptions?: boolean) => void;
     viewMode: "grid" | "list";
     isMobile: boolean;
   }) => {
     if (!category) return null;
-    
+
     return (
       <div className="mb-6">
         <div className={`${category.color || 'bg-gray-200'} ${category.textColor || 'text-gray-800'} px-4 py-2 rounded-lg mb-3`}>
@@ -1095,21 +1349,21 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         .select('*, product_categories(*)')
         .eq('id', productId)
         .single();
-      
+
       if (productError) throw productError;
-      
+
       if (!product.product_categories.has_extras) {
         return [];
       }
-      
+
       const { data: extras, error: extrasError } = await supabase
         .from('product_extras')
         .select('*')
         .eq('active', true)
         .order('name');
-      
+
       if (extrasError) throw extrasError;
-      
+
       return extras || [];
     } catch (error: any) {
       console.error("Error fetching product extras:", error);
