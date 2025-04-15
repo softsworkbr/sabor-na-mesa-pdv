@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Profile, RestaurantUserInsert, UserRoleUpdate, UserWithRole } from "./types";
@@ -292,10 +293,12 @@ export const acceptRestaurantInvite = async (
     }
     
     // Inserir o usuário na tabela restaurant_users
-    const insertData = {
+    const typedRole = invite.role as 'owner' | 'manager' | 'staff';
+    
+    const insertData: RestaurantUserInsert = {
       restaurant_id: invite.restaurant_id,
       user_id: userId,
-      role: invite.role
+      role: typedRole
     };
     
     console.log('Inserindo usuário no restaurante:', insertData);

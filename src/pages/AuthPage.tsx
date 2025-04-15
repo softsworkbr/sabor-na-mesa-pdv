@@ -13,7 +13,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { addUserToRestaurant } from '@/utils/restaurant/userManagement';
+import { RestaurantInvite, RestaurantUserInsert } from '@/utils/restaurant/types';
+import { acceptRestaurantInvite } from '@/utils/restaurant/userManagement';
 
 // Esquemas de validação
 const loginSchema = z.object({
@@ -36,18 +37,6 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 // Interfaces para tipagem
-interface RestaurantInvite {
-  id: string;
-  restaurant_id: string;
-  email: string;
-  role: string;
-  status: string;
-  invited_at: string;
-  accepted_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 interface Restaurant {
   id: string;
   name: string;
@@ -59,7 +48,7 @@ interface InviteInfo {
   email: string;
   restaurantId: string;
   restaurantName: string;
-  role: string;
+  role: 'owner' | 'manager' | 'staff';
 }
 
 const AuthPage: React.FC = () => {
@@ -83,7 +72,6 @@ const AuthPage: React.FC = () => {
     console.log('ID do convite extraído da URL:', inviteId);
 
     if (inviteId) {
-      // Remover possíveis espaços em branco ou caracteres inválidos
       const cleanInviteId = inviteId.trim();
       console.log('ID do convite limpo:', cleanInviteId);
       fetchInviteInfo(cleanInviteId);
@@ -96,7 +84,6 @@ const AuthPage: React.FC = () => {
     try {
       console.log('Buscando convite com ID:', inviteId);
 
-      // Verificar se existem convites na tabela (consulta geral)
       const { data: allInvites, error: allInvitesError } = await supabase
         .from('restaurant_invites')
         .select('id, email, status')
@@ -105,12 +92,10 @@ const AuthPage: React.FC = () => {
       console.log('Amostra de convites na tabela:', allInvites);
       console.log('Erro na consulta geral:', allInvitesError);
 
-      // Verificar se o ID está no formato correto
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const isValidUUID = uuidRegex.test(inviteId);
       console.log('O ID do convite é um UUID válido?', isValidUUID);
 
-      // Buscar convite sem filtro de status
       const { data: inviteNoStatus, error: noStatusError } = await supabase
         .from('restaurant_invites')
         .select('*')
@@ -118,7 +103,6 @@ const AuthPage: React.FC = () => {
 
       console.log('Busca sem filtro de status:', { inviteNoStatus, error: noStatusError });
 
-      // Busca com like para verificar se há problemas com o formato exato
       const { data: invitesLike, error: likeError } = await supabase
         .from('restaurant_invites')
         .select('*')
@@ -126,7 +110,6 @@ const AuthPage: React.FC = () => {
 
       console.log('Busca com LIKE parcial:', { invitesLike, error: likeError });
 
-      // Primeiro verificamos se o convite existe sem usar .single()
       const { data: invites, error: inviteQueryError } = await supabase
         .from('restaurant_invites')
         .select('*')
@@ -141,11 +124,9 @@ const AuthPage: React.FC = () => {
         return;
       }
 
-      // Verificar se encontrou algum convite
       if (!invites || invites.length === 0) {
         console.error('Convite não encontrado ou já utilizado');
 
-        // Verificar se existe o convite com qualquer status
         const { data: anyInvites } = await supabase
           .from('restaurant_invites')
           .select('id, status, email')
@@ -161,7 +142,6 @@ const AuthPage: React.FC = () => {
             toast.error('Convite inválido ou expirado.');
           }
         } else {
-          // Se não encontrou nada, verificar se há convites com o ID parcial
           if (invitesLike && invitesLike.length > 0) {
             console.log('Encontrou convites com ID parcial:', invitesLike);
             toast.error('Convite encontrado com ID parcial, mas não exato. Verifique o link.');
@@ -174,11 +154,9 @@ const AuthPage: React.FC = () => {
         return;
       }
 
-      // Usar o primeiro convite encontrado
       const typedInvite = invites[0] as RestaurantInvite;
       console.log('Convite encontrado:', typedInvite);
 
-      // Buscar informações do restaurante
       const { data: restaurants, error: restaurantQueryError } = await supabase
         .from('restaurants')
         .select('name')
@@ -192,16 +170,8 @@ const AuthPage: React.FC = () => {
         return;
       }
 
-      // Verificar se encontrou o restaurante
-      if (!restaurants || restaurants.length === 0) {
-        console.error('Restaurante não encontrado');
-        toast.error('Restaurante não encontrado.');
-        return;
-      }
-
       const typedRestaurant = restaurants[0] as Restaurant;
 
-      // Definir as informações do convite
       setInviteInfo({
         id: typedInvite.id,
         email: typedInvite.email,
@@ -210,15 +180,12 @@ const AuthPage: React.FC = () => {
         role: typedInvite.role
       });
 
-      // Preencher o campo de email no formulário
       if (typedInvite.email) {
         loginForm.setValue('email', typedInvite.email);
         registerForm.setValue('email', typedInvite.email);
       }
 
-      // Mostrar alerta sobre o convite
       toast.info(`Você foi convidado para se juntar ao restaurante ${typedRestaurant.name} como ${typedInvite.role === 'manager' ? 'gerente' : 'atendente'}.`);
-
     } catch (error) {
       console.error('Erro ao processar convite:', error);
       toast.error('Ocorreu um erro ao processar o convite.');
@@ -227,7 +194,6 @@ const AuthPage: React.FC = () => {
     }
   };
 
-  // Aceitar o convite após o registro bem-sucedido
   const acceptInvite = async () => {
     if (!inviteInfo || !user) {
       console.log('Não foi possível aceitar o convite: inviteInfo ou user não definidos', { inviteInfo, user });
@@ -252,14 +218,12 @@ const AuthPage: React.FC = () => {
         return;
       }
 
-      const typedInviteData = inviteData as Pick<RestaurantInvite, 'restaurant_id' | 'role'>;
-      console.log('Dados tipados do convite:', typedInviteData);
-
-      // Verificar se o usuário já está vinculado ao restaurante
+      const typedRole = inviteData.role as 'owner' | 'manager' | 'staff';
+      
       const { data: existingUser, error: existingUserError } = await supabase
         .from('restaurant_users')
         .select('*')
-        .eq('restaurant_id', typedInviteData.restaurant_id)
+        .eq('restaurant_id', inviteData.restaurant_id)
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -269,11 +233,10 @@ const AuthPage: React.FC = () => {
         console.log('Usuário já vinculado ao restaurante');
         toast.info('Você já está vinculado a este restaurante.');
       } else {
-        // Inserir diretamente na tabela restaurant_users
-        const insertData = {
-          restaurant_id: typedInviteData.restaurant_id,
+        const insertData: RestaurantUserInsert = {
+          restaurant_id: inviteData.restaurant_id,
           user_id: user.id,
-          role: typedInviteData.role
+          role: typedRole
         };
 
         console.log('Tentando inserir usuário no restaurante:', insertData);
@@ -285,7 +248,6 @@ const AuthPage: React.FC = () => {
         console.log('Resultado da inserção:', { error: insertError });
 
         if (insertError) {
-          // Verificar erro de chave duplicada
           if (insertError.code === '23505') {
             console.log('Erro de duplicação ao inserir usuário');
             toast.info('Você já está vinculado a este restaurante.');
@@ -299,8 +261,6 @@ const AuthPage: React.FC = () => {
         }
       }
 
-      // Atualizar status do convite para aceito
-      console.log('Atualizando status do convite para aceito');
       const { error: updateError } = await supabase
         .from('restaurant_invites')
         .update({
@@ -326,14 +286,12 @@ const AuthPage: React.FC = () => {
     }
   };
 
-  // Redirecionar se já estiver autenticado
   useEffect(() => {
     if (user) {
       navigate('/');
     }
   }, [user, navigate]);
 
-  // Efeito para o cooldown
   useEffect(() => {
     let timer: number | null = null;
 
@@ -354,7 +312,6 @@ const AuthPage: React.FC = () => {
     };
   }, [cooldownActive, cooldownTime]);
 
-  // Formulário de login
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -363,7 +320,6 @@ const AuthPage: React.FC = () => {
     },
   });
 
-  // Formulário de registro
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
@@ -375,13 +331,11 @@ const AuthPage: React.FC = () => {
     },
   });
 
-  // Função de login
   const onLoginSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
       await signIn(data.email, data.password);
 
-      // Se houver um convite, aceitar automaticamente após o login
       if (inviteInfo && user) {
         await acceptInvite();
       }
@@ -394,7 +348,6 @@ const AuthPage: React.FC = () => {
     }
   };
 
-  // Função de registro
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     if (cooldownActive) return;
 
@@ -413,7 +366,6 @@ const AuthPage: React.FC = () => {
 
       if (error) throw error;
 
-      // Se houver um convite e o registro for bem-sucedido, aceitar o convite
       if (inviteInfo && authData.user) {
         await acceptInvite();
         toast.success(`Conta criada e vinculada ao restaurante ${inviteInfo.restaurantName} como ${inviteInfo.role}!`);
@@ -422,12 +374,9 @@ const AuthPage: React.FC = () => {
       }
     } catch (error: any) {
       console.error(error);
-      // Verificar se é um erro de rate limiting
       if (error.code === 'over_email_send_rate_limit') {
-        // Extrair o número de segundos do erro, ou usar um valor padrão
         const waitTimeMatch = error.message.match(/after (\d+) seconds/);
         const waitTime = waitTimeMatch ? parseInt(waitTimeMatch[1]) : 30;
-
         setCooldownTime(waitTime);
         setCooldownActive(true);
       }

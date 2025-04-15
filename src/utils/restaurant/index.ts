@@ -7,7 +7,8 @@ export type {
   Profile,
   UserWithRole,
   RestaurantUserInsert,
-  UserRoleUpdate
+  UserRoleUpdate,
+  RestaurantInvite
 } from './types';
 
 // Export table types
@@ -52,7 +53,8 @@ export {
   getUsersForRestaurant,
   addUserToRestaurant,
   removeUserFromRestaurant,
-  updateUserRole
+  updateUserRole,
+  acceptRestaurantInvite
 } from './userManagement';
 
 // Export table management functions
