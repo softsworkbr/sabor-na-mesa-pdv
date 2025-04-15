@@ -21,6 +21,7 @@ export interface CashRegisterTransaction {
   order_id?: string | null;
   order_payment_id?: string | null;
   amount: number;
+  balance: number;
   type: 'payment' | 'withdrawal' | 'deposit';
   payment_method_id?: string | null;
   notes?: string | null;

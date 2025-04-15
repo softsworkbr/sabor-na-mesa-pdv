@@ -50,7 +50,6 @@ export const CashRegisterTransactions = ({ transactions }: CashRegisterTransacti
     );
   });
 
-  // Calculate totals
   const totals = transactions.reduce((acc, transaction) => {
     if (transaction.type === 'payment' || transaction.type === 'deposit') {
       acc.income += transaction.amount;
@@ -100,6 +99,7 @@ export const CashRegisterTransactions = ({ transactions }: CashRegisterTransacti
                 <TableHead>Tipo</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Observações</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,11 +130,14 @@ export const CashRegisterTransactions = ({ transactions }: CashRegisterTransacti
                   <TableCell className="max-w-[200px] truncate">
                     {transaction.notes || '-'}
                   </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(transaction.balance)}
+                  </TableCell>
                 </TableRow>
               ))}
               {filteredTransactions.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                     {searchTerm 
                       ? 'Nenhuma transação encontrada para esta busca' 
                       : 'Nenhuma transação registrada'}

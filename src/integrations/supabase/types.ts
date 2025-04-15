@@ -12,6 +12,7 @@ export type Database = {
       cash_register_transactions: {
         Row: {
           amount: number
+          balance: number
           cash_register_id: string
           created_at: string
           id: string
@@ -24,6 +25,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          balance?: number
           cash_register_id: string
           created_at?: string
           id?: string
@@ -36,6 +38,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          balance?: number
           cash_register_id?: string
           created_at?: string
           id?: string
