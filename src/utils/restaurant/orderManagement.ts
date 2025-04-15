@@ -12,6 +12,10 @@ import {
   PaymentMethod,
   CreateOrderPaymentProps
 } from "./orderTypes";
+import { 
+  getCurrentCashRegister,
+  createCashRegisterTransaction 
+} from "./cashRegisterManagement";
 
 /**
  * Helper function to convert database extras (JSON) to typed ProductExtra array

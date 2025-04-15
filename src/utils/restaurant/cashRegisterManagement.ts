@@ -20,7 +20,8 @@ export const openCashRegister = async (data: OpenCashRegisterProps): Promise<Cas
     if (error) throw error;
     
     toast.success('Caixa aberto com sucesso!');
-    return register;
+    // Type assertion to ensure the status is of type "open" | "closed"
+    return register as CashRegister;
   } catch (error: any) {
     console.error('Error opening cash register:', error);
     toast.error(`Erro ao abrir caixa: ${error.message}`);
@@ -46,7 +47,8 @@ export const closeCashRegister = async (registerId: string, data: CloseCashRegis
     if (error) throw error;
     
     toast.success('Caixa fechado com sucesso!');
-    return register;
+    // Type assertion to ensure the status is of type "open" | "closed"
+    return register as CashRegister;
   } catch (error: any) {
     console.error('Error closing cash register:', error);
     toast.error(`Erro ao fechar caixa: ${error.message}`);
@@ -64,7 +66,8 @@ export const getCurrentCashRegister = async (restaurantId: string): Promise<Cash
       .maybeSingle();
 
     if (error) throw error;
-    return register;
+    // Type assertion to ensure the status is of type "open" | "closed"
+    return register as CashRegister | null;
   } catch (error: any) {
     console.error('Error getting current cash register:', error);
     throw error;
@@ -82,7 +85,8 @@ export const createCashRegisterTransaction = async (
       .single();
 
     if (error) throw error;
-    return transaction;
+    // Type assertion to ensure the type is of type "payment" | "withdrawal" | "deposit"
+    return transaction as CashRegisterTransaction;
   } catch (error: any) {
     console.error('Error creating cash register transaction:', error);
     throw error;
@@ -100,7 +104,8 @@ export const getCashRegisterTransactions = async (
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-    return transactions;
+    // Type assertion to ensure the type is of type "payment" | "withdrawal" | "deposit" for each transaction
+    return transactions as CashRegisterTransaction[];
   } catch (error: any) {
     console.error('Error getting cash register transactions:', error);
     throw error;
