@@ -36,6 +36,7 @@ const AddCashTransactionModal: React.FC<AddCashTransactionModalProps> = ({
       await createCashRegisterTransaction({
         cash_register_id: registerId,
         amount: Number(amount.replace(',', '.')),
+        balance: 0, // This value will be calculated by the database trigger
         type,
         notes,
       });

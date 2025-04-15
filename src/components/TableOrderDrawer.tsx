@@ -984,6 +984,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
             order_id: orderId,
             order_payment_id: paymentData.id,
             amount: payment.amount,
+            balance: 0, // This value will be calculated by the database trigger
             type: 'payment',
             payment_method_id: payment.method.id,
             notes: `Pagamento de pedido #${orderId.substring(0, 6)} - Mesa ${table.number}`

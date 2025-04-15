@@ -506,6 +506,7 @@ export const completeOrderPayment = async (
         order_id: orderId,
         order_payment_id: payment.id,
         amount: payment.amount,
+        balance: 0, // This value will be calculated by the database trigger
         type: 'payment',
         payment_method_id: payment.payment_method_id,
         notes: `Pagamento do pedido #${orderId}`
