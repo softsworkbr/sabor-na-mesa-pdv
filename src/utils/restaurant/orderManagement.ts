@@ -1,73 +1,33 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
   Order, 
-  OrderItem, 
   CreateOrderProps, 
-  UpdateOrderProps, 
-  CreateOrderItemProps, 
-  UpdateOrderItemProps,
-  ProductExtra,
-  OrderPayment,
-  PaymentMethod,
-  CreateOrderPaymentProps
-} from "./orderTypes";
+  UpdateOrderProps,
+  OrderItem
+} from './types/orderTypes';
+import { convertToOrderItem } from './helpers/orderHelpers';
+import { 
+  addOrderItem as addItem,
+  updateOrderItem as updateItem,
+  removeOrderItem as removeItem
+} from './services/orderItemsService';
+import {
+  addOrderPayment as addPayment,
+  getPaymentMethods as getPaymentMethodsList
+} from './services/paymentService';
 import { 
   getCurrentCashRegister,
   createCashRegisterTransaction 
 } from "./cashRegisterManagement";
 
-/**
- * Helper function to convert database extras (JSON) to typed ProductExtra array
- */
-const parseExtras = (extrasJson: any): ProductExtra[] | null => {
-  if (!extrasJson) return null;
-  
-  console.log("Parsing extras:", extrasJson, "Type:", typeof extrasJson);
-  
-  try {
-    // Se já for um array, retornar diretamente
-    if (Array.isArray(extrasJson)) {
-      console.log("Extras is already an array");
-      return extrasJson as ProductExtra[];
-    }
-    
-    // Se for uma string JSON, tentar fazer o parse
-    if (typeof extrasJson === 'string') {
-      console.log("Extras is a string, trying to parse");
-      try {
-        const parsed = JSON.parse(extrasJson);
-        if (Array.isArray(parsed)) {
-          console.log("Successfully parsed extras string to array");
-          return parsed as ProductExtra[];
-        }
-      } catch (e) {
-        console.error("Failed to parse extras JSON string:", e);
-      }
-    }
-    
-    // Se for um objeto com a estrutura esperada do Supabase
-    if (typeof extrasJson === 'object' && extrasJson !== null) {
-      console.log("Extras is an object, trying to convert");
-      return [extrasJson] as ProductExtra[];
-    }
-    
-    console.log("Could not parse extras, returning null");
-    return null;
-  } catch (error) {
-    console.error("Error parsing extras:", error);
-    return null;
-  }
-};
-
-/**
- * Helper function to convert database item to OrderItem with proper types
- */
-const convertToOrderItem = (item: any): OrderItem => {
-  return {
-    ...item,
-    extras: parseExtras(item.extras)
-  };
+export {
+  addItem as addOrderItem,
+  updateItem as updateOrderItem,
+  removeItem as removeOrderItem,
+  addPayment as addOrderPayment,
+  getPaymentMethodsList as getPaymentMethods
 };
 
 /**
@@ -134,7 +94,6 @@ export const getOrderById = async (orderId: string): Promise<Order | null> => {
 
     if (error) {
       if (error.code === 'PGRST116') {
-        // No rows returned
         return null;
       }
       toast.error(`Erro ao buscar pedido: ${error.message}`);
@@ -152,7 +111,6 @@ export const getOrderById = async (orderId: string): Promise<Order | null> => {
       throw itemsError;
     }
     
-    // Convert items with proper type handling for extras
     const typedItems = items ? items.map(convertToOrderItem) : [];
 
     return { ...order, items: typedItems } as Order;
@@ -194,7 +152,6 @@ export const getOrderByTableId = async (tableId: string): Promise<Order | null> 
       throw itemsError;
     }
     
-    // Convert items with proper type handling for extras
     const typedItems = items ? items.map(convertToOrderItem) : [];
 
     return { ...orders, items: typedItems } as Order;
@@ -227,132 +184,6 @@ export const getOrders = async (status?: string): Promise<Order[]> => {
     return data as Order[];
   } catch (error: any) {
     console.error('Error fetching orders:', error);
-    throw error;
-  }
-};
-
-/**
- * Adds an item to an order
- */
-export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderItem> => {
-  try {
-    console.log("Adding order item with observation:", data.observation);
-    console.log("Adding order item with extras:", data.extras);
-    
-    // Prepare data for database insertion
-    const insertData: any = {
-      order_id: data.order_id,
-      product_id: data.product_id,
-      name: data.name,
-      price: data.price,
-      quantity: data.quantity,
-      observation: data.observation === "" ? null : data.observation
-    };
-    
-    // Handle extras field - make sure it's stored as JSON in the database
-    if (data.extras && Array.isArray(data.extras) && data.extras.length > 0) {
-      // Garantir que apenas as propriedades necessárias sejam incluídas
-      const cleanExtras = data.extras.map(extra => ({
-        id: extra.id,
-        name: extra.name,
-        price: extra.price
-      }));
-      
-      // Converter para string JSON para garantir compatibilidade
-      insertData.extras = cleanExtras;
-      
-      console.log("Extras being saved:", cleanExtras);
-    } else {
-      insertData.extras = null;
-    }
-    
-    console.log("Insert data being sent to database:", insertData);
-    
-    const { data: orderItem, error } = await supabase
-      .from('order_items')
-      .insert(insertData)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Database error when inserting item:", error);
-      toast.error(`Erro ao adicionar item ao pedido: ${error.message}`);
-      throw error;
-    }
-
-    console.log("Successfully added item:", orderItem);
-    
-    // Verificar se os extras foram salvos corretamente
-    if (orderItem && orderItem.extras) {
-      console.log("Extras saved in database:", orderItem.extras);
-    }
-    
-    // Convert the returned item with properly typed extras
-    const convertedItem = convertToOrderItem(orderItem);
-    console.log("Converted item with extras:", convertedItem);
-    
-    return convertedItem;
-  } catch (error: any) {
-    console.error('Error adding order item:', error);
-    throw error;
-  }
-};
-
-/**
- * Updates an order item
- */
-export const updateOrderItem = async (itemId: string, data: UpdateOrderItemProps): Promise<OrderItem> => {
-  try {
-    console.log("Updating order item:", itemId, "with data:", data);
-    
-    // Prepare update data
-    const updateData: any = { ...data };
-    
-    // If observation is empty string, convert to null for database
-    if (updateData.observation === '') {
-      updateData.observation = null;
-    }
-    
-    console.log("Update data being sent to database:", updateData);
-    
-    const { data: updatedItem, error } = await supabase
-      .from('order_items')
-      .update(updateData)
-      .eq('id', itemId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Database error when updating item:", error);
-      toast.error(`Erro ao atualizar item: ${error.message}`);
-      throw error;
-    }
-
-    console.log("Successfully updated item:", updatedItem);
-    // Convert the returned item with properly typed extras
-    return convertToOrderItem(updatedItem);
-  } catch (error: any) {
-    console.error('Error updating order item:', error);
-    throw error;
-  }
-};
-
-/**
- * Removes an item from an order
- */
-export const removeOrderItem = async (itemId: string): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('order_items')
-      .delete()
-      .eq('id', itemId);
-
-    if (error) {
-      toast.error(`Erro ao remover item: ${error.message}`);
-      throw error;
-    }
-  } catch (error: any) {
-    console.error('Error removing order item:', error);
     throw error;
   }
 };
@@ -405,58 +236,7 @@ export const calculateOrderTotal = async (orderId: string, serviceFeePercent: nu
 };
 
 /**
- * Adiciona um pagamento ao pedido
- */
-export const addOrderPayment = async (data: CreateOrderPaymentProps): Promise<OrderPayment> => {
-  try {
-    const { data: payment, error } = await supabase
-      .from('order_payments')
-      .insert({
-        order_id: data.order_id,
-        payment_method_id: data.payment_method_id,
-        amount: data.amount,
-        include_service_fee: data.include_service_fee !== undefined ? data.include_service_fee : true
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error(`Erro ao adicionar pagamento: ${error.message}`);
-      throw error;
-    }
-
-    return payment as OrderPayment;
-  } catch (error: any) {
-    console.error('Error adding order payment:', error);
-    throw error;
-  }
-};
-
-/**
- * Obtém os métodos de pagamento disponíveis
- */
-export const getPaymentMethods = async (): Promise<PaymentMethod[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('payment_methods')
-      .select('*')
-      .eq('active', true)
-      .order('name');
-
-    if (error) {
-      toast.error(`Erro ao buscar métodos de pagamento: ${error.message}`);
-      throw error;
-    }
-
-    return data as PaymentMethod[];
-  } catch (error: any) {
-    console.error('Error fetching payment methods:', error);
-    throw error;
-  }
-};
-
-/**
- * Finaliza o pagamento de um pedido
+ * Finalizes order payment
  */
 export const completeOrderPayment = async (
   orderId: string, 
@@ -509,7 +289,7 @@ export const completeOrderPayment = async (
         balance: 0, // This value will be calculated by the database trigger
         type: 'payment',
         payment_method_id: payment.payment_method_id,
-        notes: `Pagamento do pedido #${orderId}`
+        notes: `Pagamento do pedido #${orderId.substring(0, 6)}`
       });
 
       // Update order payment with transaction reference
