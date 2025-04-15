@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CashRegister, CashRegisterTransaction, OpenCashRegisterProps, CloseCashRegisterProps } from "./cashRegisterTypes";
@@ -70,6 +69,40 @@ export const getCurrentCashRegister = async (restaurantId: string): Promise<Cash
     return register as CashRegister | null;
   } catch (error: any) {
     console.error('Error getting current cash register:', error);
+    throw error;
+  }
+};
+
+export const getCashRegisterById = async (registerId: string): Promise<CashRegister | null> => {
+  try {
+    const { data: register, error } = await supabase
+      .from('cash_registers')
+      .select('*')
+      .eq('id', registerId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return register as CashRegister | null;
+  } catch (error: any) {
+    console.error('Error getting cash register by ID:', error);
+    throw error;
+  }
+};
+
+export const getClosedCashRegisters = async (restaurantId: string, limit = 10): Promise<CashRegister[]> => {
+  try {
+    const { data: registers, error } = await supabase
+      .from('cash_registers')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .eq('status', 'closed')
+      .order('closed_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return registers as CashRegister[];
+  } catch (error: any) {
+    console.error('Error getting closed cash registers:', error);
     throw error;
   }
 };

@@ -112,6 +112,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
   const { currentRestaurant } = useAuth();
+  const [isCashRegisterLoading, setIsCashRegisterLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen && table?.id) {
@@ -662,9 +663,19 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                 className={`${isTableBlocked ? "bg-red-800 hover:bg-red-900" : "bg-gray-800 hover:bg-gray-900"} text-sm flex-1 md:flex-initial`}
                 size={isMobile ? "sm" : "default"}
                 onClick={handlePayment}
+                disabled={isCashRegisterLoading}
               >
-                <CreditCard className="mr-1 md:mr-2 h-4 w-4" />
-                {isSmallMobile ? "Pagamento" : "PAGAMENTO (F5)"}
+                {isCashRegisterLoading ? (
+                  <>
+                    <Loader2 className="mr-1 md:mr-2 h-4 w-4 animate-spin" />
+                    {isSmallMobile ? "Verificando..." : "Verificando caixa..."}
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="mr-1 md:mr-2 h-4 w-4" />
+                    {isSmallMobile ? "Pagamento" : "PAGAMENTO (F5)"}
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -713,82 +724,65 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
           <div className="flex h-[calc(100vh-200px)] overflow-hidden">
             {isMobile ? (
-              <div className="w-full p-3 bg-gray-50 border-b">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between">
-                      <span className="truncate">
-                        {categoriesToUse.find(c => c.id === activeCategory)?.name || "Todas"}
-                      </span>
-                      <ChevronDown className="h-4 w-4 ml-2" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-[280px] max-h-[50vh] overflow-y-auto">
-                    {categoriesToUse.map((category) => (
-                      <DropdownMenuItem
-                        key={category.id}
-                        onClick={() => setActiveCategory(category.id)}
-                        className={activeCategory === category.id ? "bg-accent" : ""}
-                      >
-                        <div
-                          className={`w-3 h-3 mr-2 rounded-full ${category.color || "bg-gray-200"}`}
+              <div className="flex flex-col h-full overflow-hidden">
+                <div className="p-2 border-b bg-gray-50">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between">
+                        <span>
+                          {categoriesToUse.find(c => c.id === activeCategory)?.name || "Todas as categorias"}
+                        </span>
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 max-h-[60vh] overflow-y-auto">
+                      {categoriesToUse.map((category) => (
+                        <DropdownMenuItem 
+                          key={category.id}
+                          onClick={() => setActiveCategory(category.id)}
+                          className={`${activeCategory === category.id ? 'font-bold bg-gray-100' : ''}`}
+                        >
+                          <span className="mr-2">
+                            {category.id === "todas" ? "•" : category.has_extras ? "+" : ""}
+                          </span>
+                          {category.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <div className="overflow-y-auto flex-1 p-2">
+                  {isLoadingProducts ? (
+                    <div className="flex justify-center items-center h-full">
+                      <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {activeCategory !== "todas" ? (
+                        <CategoryProductGroup
+                          category={categoriesToUse.find(c => c.id === activeCategory)}
+                          products={filteredProducts}
+                          onAddProduct={handleAddProduct}
+                          viewMode={viewMode}
+                          isMobile={isMobile}
                         />
-                        <span>{category.name}</span>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <div className="overflow-y-auto flex-1">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-gray-100">
-                      <TableRow>
-                        <TableHead className="w-24">Categoria</TableHead>
-                        <TableHead className="w-20">Código</TableHead>
-                        <TableHead>Nome do Produto</TableHead>
-                        <TableHead className="w-28">Preço de Venda</TableHead>
-                        <TableHead className="w-20 text-center">Adicionar</TableHead>
-                        <TableHead className="w-32 text-center">Opções</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredProducts.map((product) => {
-                        const category = categoriesToUse.find(c => c.id === product.category_id);
-                        return (
-                          <TableRow key={product.id} className="hover:bg-gray-50">
-                            <TableCell className="py-1">{category?.name.split(' ')[0]}</TableCell>
-                            <TableCell className="py-1">{product.id}</TableCell>
-                            <TableCell className="py-1">
-                              {product.name}
-                              {category?.has_extras && (
-                                <span className="ml-1 text-xs bg-blue-50 text-blue-800 px-1 rounded">+Adicionais</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="py-1 text-right font-semibold">{product.price.toFixed(2).replace('.', ',')}</TableCell>
-                            <TableCell className="py-1 text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="mx-auto"
-                                onClick={() => handleAddProduct(product.id, true)}
-                              >
-                                <Plus className="h-5 w-5" />
-                              </Button>
-                            </TableCell>
-                            <TableCell className="py-1 text-center">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="mx-auto h-7 w-7 rounded-full text-gray-500 hover:text-gray-800"
-                                onClick={() => handleAddProduct(product.id, true)}
-                              >
-                                <FileText className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                      ) : (
+                        Object.entries(productsByCategory).map(([categoryId, products]) => {
+                          const category = categoriesToUse.find(c => c.id === categoryId);
+                          return (
+                            <CategoryProductGroup
+                              key={categoryId}
+                              category={category}
+                              products={products}
+                              onAddProduct={handleAddProduct}
+                              viewMode={viewMode}
+                              isMobile={isMobile}
+                            />
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -838,12 +832,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                             />
                           );
                         })
-                      )}
-
-                      {filteredProducts.length === 0 && (
-                        <div className="text-center py-8 text-gray-500">
-                          Nenhum produto encontrado para esta categoria.
-                        </div>
                       )}
                     </div>
                   )}
@@ -937,13 +925,30 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     </>
   );
 
-  const handlePayment = () => {
+  const handlePayment = async () => {
     if (!orderId) {
       toast.error("É necessário criar um pedido antes de realizar o pagamento");
       return;
     }
 
-    setShowPaymentModal(true);
+    setIsCashRegisterLoading(true);
+    try {
+      // Verificar se existe um caixa aberto
+      const cashRegister = await getCurrentCashRegister(currentRestaurant?.id || '');
+      
+      if (!cashRegister) {
+        toast.error("Não há caixa aberto. É necessário abrir o caixa antes de realizar pagamentos.");
+        return;
+      }
+      
+      // Se o caixa estiver aberto, prosseguir com o pagamento
+      setShowPaymentModal(true);
+    } catch (error: any) {
+      console.error("Erro ao verificar caixa:", error);
+      toast.error("Erro ao verificar status do caixa. Tente novamente.");
+    } finally {
+      setIsCashRegisterLoading(false);
+    }
   };
 
   const handleCompletePayment = async (payments: PaymentItem[], includeServiceFee: boolean) => {

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Profile, RestaurantUserInsert, UserRoleUpdate, UserWithRole } from "./types";
@@ -50,23 +49,33 @@ export const addUserToRestaurant = async (
   role: 'manager' | 'staff'
 ): Promise<boolean> => {
   try {
-    // First, get the user ID from the email
-    const { data: userData, error: userError } = await supabase
+    // Buscar o usuário pelo email na tabela profiles
+    const { data: profileData, error: profileError } = await supabase
       .from('profiles')
-      .select('id')
-      .eq('email', email)
-      .maybeSingle();  // Use maybeSingle instead of single to avoid errors when no rows are found
+      .select('id, email')
+      .ilike('email', email)  // Usar ilike para busca case-insensitive
+      .maybeSingle();
 
-    if (userError || !userData) {
-      toast.error('Usuário não encontrado. Verifique o email informado.');
-      if (userError) console.error('Error finding user:', userError);
+    if (profileError) {
+      console.error('Erro ao buscar perfil:', profileError);
+      toast.error('Erro ao verificar usuário. Tente novamente.');
       return false;
     }
 
-    // Then add the user to the restaurant
+    if (!profileData) {
+      // Se não encontrou o perfil, verificar se o usuário existe no sistema de autenticação
+      // Como não podemos acessar diretamente auth.users e não podemos criar perfis devido ao RLS,
+      // precisamos informar ao usuário que o email precisa estar cadastrado primeiro
+      
+      toast.error('Usuário não encontrado. O email informado precisa estar cadastrado no sistema antes de ser vinculado ao restaurante.');
+      toast.info('Peça ao usuário que faça login no sistema pelo menos uma vez antes de tentar vinculá-lo.');
+      return false;
+    }
+
+    // Se encontrou o perfil, vincular ao restaurante
     const insertData: RestaurantUserInsert = {
       restaurant_id: restaurantId,
-      user_id: userData.id,
+      user_id: profileData.id,
       role
     };
     
@@ -75,13 +84,14 @@ export const addUserToRestaurant = async (
       .insert(insertData);
 
     if (error) {
-      // Check for duplicate key error
+      // Verificar erro de chave duplicada
       if (error.code === '23505') {
         toast.error('Este usuário já está vinculado a este restaurante');
       } else {
+        console.error('Erro ao adicionar usuário:', error);
         toast.error(`Erro ao adicionar usuário: ${error.message}`);
       }
-      throw error;
+      return false;
     }
 
     toast.success('Usuário adicionado com sucesso!');

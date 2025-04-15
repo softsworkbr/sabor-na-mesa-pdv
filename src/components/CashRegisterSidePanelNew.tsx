@@ -1,15 +1,18 @@
 import React from 'react';
-import { Card } from '@/components/ui/card';
 import { format } from 'date-fns';
 import { CashRegister } from '@/utils/restaurant/cashRegisterTypes';
-import { UserData } from '@/contexts/AuthContext';
 
 interface CashRegisterSidePanelProps {
   register: CashRegister;
-  currentUser: UserData | null;
+  currentUser: {
+    id?: string;
+    email?: string;
+    name?: string;
+    username?: string;
+  } | null;
 }
 
-export const CashRegisterSidePanel = ({ register, currentUser }: CashRegisterSidePanelProps) => {
+export const CashRegisterSidePanelNew = ({ register, currentUser }: CashRegisterSidePanelProps) => {
   return (
     <div className="w-80 bg-gray-800 text-white h-full flex flex-col shadow-lg">
       {/* Header with status */}
