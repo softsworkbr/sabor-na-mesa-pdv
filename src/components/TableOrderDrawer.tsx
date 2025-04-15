@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -40,6 +41,7 @@ import {
 } from "@/utils/restaurant/orderManagement";
 import { 
   updateTable,
+  updateTableCustomerName,
   getOrderByTableId,
 } from "@/utils/restaurant";
 import { toast } from "sonner";
