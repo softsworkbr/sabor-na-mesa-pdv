@@ -53,6 +53,7 @@ const AppRoutes = () => {
         <Route path="/users" element={<UsersPage />} />
         <Route path="/printers" element={<PrintersPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/cash-register" element={<CashRegisterPage />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
