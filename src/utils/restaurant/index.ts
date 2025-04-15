@@ -1,3 +1,4 @@
+
 // Re-export all restaurant utility functions and types from a single entry point
 
 // Export types
@@ -38,7 +39,7 @@ export type {
   PaymentMethod,
   OrderPayment,
   CreateOrderPaymentProps
-} from './orderTypes';
+} from './types/orderTypes';
 
 // Export restaurant management functions
 export {
@@ -79,7 +80,8 @@ export {
   calculateOrderTotal,
   addOrderPayment,
   getPaymentMethods,
-  completeOrderPayment
+  completeOrderPayment,
+  updateOrderItemPrintStatus
 } from './orderManagement';
 
 // Export printer management functions
