@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,9 +12,17 @@ interface Restaurant {
   logo_url?: string | null;
 }
 
+interface UserData {
+  id: string;
+  email: string;
+  name?: string;
+  username?: string;
+}
+
 interface AuthContextProps {
   session: Session | null;
   user: User | null;
+  currentUser: UserData | null;
   loading: boolean;
   currentRestaurant: Restaurant | null;
   restaurants: Restaurant[];
@@ -34,9 +41,24 @@ const LAST_RESTAURANT_KEY = 'lastUsedRestaurant';
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [currentRestaurant, setCurrentRestaurant] = useState<Restaurant | null>(null);
+
+  // Extract user data whenever the user object changes
+  useEffect(() => {
+    if (user) {
+      setCurrentUser({
+        id: user.id,
+        email: user.email || '',
+        name: user.user_metadata?.full_name || user.user_metadata?.name || 'Usuário',
+        username: user.user_metadata?.username
+      });
+    } else {
+      setCurrentUser(null);
+    }
+  }, [user]);
 
   // Function to save the current restaurant to localStorage
   const saveCurrentRestaurantToStorage = (restaurant: Restaurant | null) => {
@@ -108,36 +130,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const lastUsedRestaurant = JSON.parse(lastUsedRestaurantString);
             
             // Check if the last used restaurant is still in the user's list
-            const restaurantStillExists = userRestaurants.find(r => r.id === lastUsedRestaurant.id);
+            const existingRestaurant = userRestaurants.find(r => r.id === lastUsedRestaurant.id);
             
-            if (restaurantStillExists) {
-              // Use the updated restaurant data
-              handleSetCurrentRestaurant(restaurantStillExists);
+            if (existingRestaurant) {
+              handleSetCurrentRestaurant(existingRestaurant);
               return;
             }
           }
         } catch (e) {
           console.error('Error parsing last used restaurant:', e);
-          // Continue with normal flow if there's an error with localStorage
         }
         
-        // Atualizar restaurante atual apenas se ele não existir mais na lista
-        if (currentRestaurant) {
-          const stillExists = userRestaurants.find(r => r.id === currentRestaurant.id);
-          if (!stillExists && userRestaurants.length > 0) {
-            handleSetCurrentRestaurant(userRestaurants[0]);
-          } else if (stillExists) {
-            // Atualiza o restaurante atual com os dados mais recentes
-            const updatedCurrentRestaurant = userRestaurants.find(r => r.id === currentRestaurant.id);
-            if (updatedCurrentRestaurant) {
-              handleSetCurrentRestaurant(updatedCurrentRestaurant);
-            }
-          }
-        } 
-        // Set default restaurant if none is selected
-        else if (userRestaurants.length > 0) {
-          handleSetCurrentRestaurant(userRestaurants[0]);
-        }
+        // Default to first restaurant if no last used restaurant exists
+        handleSetCurrentRestaurant(userRestaurants[0]);
       } else {
         // For demo purposes, use the mock data when the user has no restaurants
         console.log("No restaurants found in database for this user, using sample data");
@@ -260,6 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{ 
       session, 
       user, 
+      currentUser,
       loading, 
       signIn, 
       signUp, 

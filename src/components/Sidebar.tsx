@@ -1,4 +1,3 @@
-
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { 
@@ -34,7 +33,7 @@ const Sidebar = () => {
 
   const filterMenuItemsByRole = (role: 'owner' | 'manager' | 'staff') => {
     // Assume base access for staff
-    const allowedItems = ["Principal", "Pedidos", "Mesas", "Cardápio"];
+    const allowedItems = ["Principal", "Pedidos", "Mesas", "Cardápio", "Caixa", "Impressoras"];
     
     // Add more access based on role
     if (role === 'manager' || role === 'owner') {

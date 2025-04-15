@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -49,6 +48,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import axios from "axios";
+import { getCurrentCashRegister, createCashRegisterTransaction } from "@/utils/restaurant/cashRegisterManagement";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Table,
   TableHeader,
@@ -67,7 +69,6 @@ import ObservationModal from "./modals/ObservationModal";
 import ExtrasModal from "./modals/ExtrasModal";
 import PaymentModal, { PaymentItem } from "./modals/PaymentModal";
 import PrinterSelectorModal from "./modals/PrinterSelectorModal";
-import axios from "axios";
 
 interface Table {
   id: string;
@@ -110,6 +111,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
   const [selectedPrinters, setSelectedPrinters] = useState<string[]>([]);
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
+  const { currentRestaurant } = useAuth();
 
   useEffect(() => {
     if (isOpen && table?.id) {
@@ -951,15 +953,40 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       console.log("Processando pagamentos:", payments);
       console.log("Incluir taxa de serviço:", includeServiceFee);
 
+      // Get the current cash register
+      if (!currentRestaurant?.id) {
+        toast.error("Restaurante não identificado");
+        return;
+      }
+      
+      const currentCashRegister = await getCurrentCashRegister(currentRestaurant.id);
+      if (!currentCashRegister) {
+        toast.error("Não há caixa aberto. Abra o caixa antes de finalizar pagamentos.");
+        return;
+      }
+
       // Usar as funções da API para salvar os pagamentos
       for (const payment of payments) {
         try {
           console.log("Salvando pagamento:", payment);
-          await addOrderPayment({
+          
+          // Save the payment using the existing function
+          const paymentData = await addOrderPayment({
             order_id: orderId,
             payment_method_id: payment.method.id,
             amount: payment.amount,
             include_service_fee: includeServiceFee
+          });
+          
+          // Register the transaction in the cash register
+          await createCashRegisterTransaction({
+            cash_register_id: currentCashRegister.id,
+            order_id: orderId,
+            order_payment_id: paymentData.id,
+            amount: payment.amount,
+            type: 'payment',
+            payment_method_id: payment.method.id,
+            notes: `Pagamento de pedido #${orderId.substring(0, 6)} - Mesa ${table.number}`
           });
         } catch (paymentError) {
           console.error("Erro ao salvar pagamento individual:", paymentError);
