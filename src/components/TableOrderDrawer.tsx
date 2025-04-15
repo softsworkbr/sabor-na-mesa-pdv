@@ -460,7 +460,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
   const handleCustomerNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newCustomerName = e.target.value;
     setCustomerName(newCustomerName);
-    
+
     if (table?.id) {
       try {
         await updateTableCustomerName(table.id, newCustomerName || null);
@@ -612,6 +612,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                           item={item}
                           onChangeQuantity={(newQuantity) => !isTableBlocked && item.id && handleChangeQuantity(item.id, newQuantity)}
                           onRemove={() => !isTableBlocked && item.id && handleRemoveProduct(item.id)}
+                          onReprint={() => !isTableBlocked && item.id && handleReprintItem(item.id)}
                           disabled={isTableBlocked}
                           isMobile={isMobile}
                         />
@@ -737,7 +738,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56 max-h-[60vh] overflow-y-auto">
                       {categoriesToUse.map((category) => (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           key={category.id}
                           onClick={() => setActiveCategory(category.id)}
                           className={`${activeCategory === category.id ? 'font-bold bg-gray-100' : ''}`}
@@ -935,12 +936,12 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     try {
       // Verificar se existe um caixa aberto
       const cashRegister = await getCurrentCashRegister(currentRestaurant?.id || '');
-      
+
       if (!cashRegister) {
         toast.error("Não há caixa aberto. É necessário abrir o caixa antes de realizar pagamentos.");
         return;
       }
-      
+
       // Se o caixa estiver aberto, prosseguir com o pagamento
       setShowPaymentModal(true);
     } catch (error: any) {
@@ -963,7 +964,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         toast.error("Restaurante não identificado");
         return;
       }
-      
+
       const currentCashRegister = await getCurrentCashRegister(currentRestaurant.id);
       if (!currentCashRegister) {
         toast.error("Não há caixa aberto. Abra o caixa antes de finalizar pagamentos.");
@@ -974,7 +975,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       for (const payment of payments) {
         try {
           console.log("Salvando pagamento:", payment);
-          
+
           // Save the payment using the existing function
           const paymentData = await addOrderPayment({
             order_id: orderId,
@@ -982,7 +983,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
             amount: payment.amount,
             include_service_fee: includeServiceFee
           });
-          
+
           // Register the transaction in the cash register
           await createCashRegisterTransaction({
             cash_register_id: currentCashRegister.id,
@@ -1062,49 +1063,224 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
   const handlePrint = async (printerNames: string[]) => {
     if (printerNames.length > 0 && currentOrder) {
       try {
+        setLoading(true);
         // Show loading toast
         const loadingToast = toast.loading(`Enviando impressão para ${printerNames.length} impressora${printerNames.length > 1 ? 's' : ''}...`);
 
-        // Generate the print text for the order
-        const printText = generatePrintText(currentOrder, orderItems, table);
+        // Set a timeout to dismiss the loading toast after 20 seconds
+        const timeoutId = setTimeout(() => {
+          toast.dismiss(loadingToast);
+          toast.warning("A operação de impressão está demorando mais que o esperado. Verifique a impressora.");
+        }, 20000); // 20 seconds
 
-        // Create an array of promises for each printer
-        const printPromises = printerNames.map(printerName =>
-          sendPrintRequest(printerName, printText)
-        );
+        // Check if we have a pending item to print from the printer selector
+        const pendingItemId = localStorage.getItem('pendingPrintItemId');
+        if (pendingItemId) {
+          // Clear the pending item
+          localStorage.removeItem('pendingPrintItemId');
 
-        // Wait for all print requests to complete
-        const results = await Promise.all(printPromises);
+          // Find the item
+          const itemToPrint = orderItems.find(item => item.id === pendingItemId);
+          if (itemToPrint) {
+            // Mark as printed in database
+            if (itemToPrint.id) {
+              const { data, error } = await supabase
+                .from('order_items')
+                .update({ printed_at: new Date().toISOString() })
+                .eq('id', itemToPrint.id)
+                .select();
 
-        // Count successful prints
-        const successCount = results.filter(result => result.success).length;
+              if (error) throw error;
+            }
 
-        // Dismiss loading toast
-        toast.dismiss(loadingToast);
+            // Update local state
+            const updatedItems = orderItems.map(item =>
+              item.id === pendingItemId ? { ...item, printed_at: new Date().toISOString() } : item
+            );
+            setOrderItems(updatedItems);
 
-        // Show success or partial success message
-        if (successCount === printerNames.length) {
-          toast.success(`Pedido impresso com sucesso em ${successCount} impressora${successCount > 1 ? 's' : ''}`);
-        } else if (successCount > 0) {
-          toast.warning(`Pedido impresso em ${successCount} de ${printerNames.length} impressoras`);
-        } else {
-          toast.error("Falha ao imprimir em todas as impressoras");
+            // Generate and print text for this single item
+            const singleItemText = generateSingleItemPrintText(currentOrder, itemToPrint, table);
+
+            // Send to selected printers
+            for (const printerName of printerNames) {
+              await sendPrintRequest(printerName, singleItemText);
+            }
+
+            // Clear the timeout since the operation completed
+            clearTimeout(timeoutId);
+
+            toast.dismiss(loadingToast);
+            toast.success("Item enviado para impressão");
+            setSelectedPrinters(printerNames);
+            setLoading(false);
+            return;
+          }
         }
+
+        // Get only the items that haven't been printed yet
+        const itemsToPrint = orderItems.filter(item => !item.printed_at);
+
+        if (itemsToPrint.length === 0) {
+          // Clear the timeout since the operation completed
+          clearTimeout(timeoutId);
+
+          toast.dismiss(loadingToast);
+          toast.warning("Não há itens para imprimir. Todos os itens já foram impressos.");
+          setLoading(false);
+          return;
+        }
+
+        // Generate text only for items that haven't been printed
+        const text = generatePrintText(currentOrder, itemsToPrint, table);
+
+        // Mark items as printed
+        const updatePromises = itemsToPrint.map(async (item) => {
+          if (item.id) {
+            const { data, error } = await supabase
+              .from('order_items')
+              .update({ printed_at: new Date().toISOString() })
+              .eq('id', item.id)
+              .select();
+
+            if (error) throw error;
+          }
+          return { ...item, printed_at: new Date().toISOString() };
+        });
+
+        // Update local state with printed items
+        const updatedItems = await Promise.all(updatePromises);
+
+        // Replace the printed items in the orderItems array
+        const newOrderItems = [...orderItems];
+        updatedItems.forEach(updatedItem => {
+          const index = newOrderItems.findIndex(item => item.id === updatedItem.id);
+          if (index !== -1) {
+            newOrderItems[index] = updatedItem;
+          }
+        });
+
+        setOrderItems(newOrderItems);
+
+        // Send print requests to all selected printers
+        for (const printerName of printerNames) {
+          await sendPrintRequest(printerName, text);
+        }
+
+        // Clear the timeout since the operation completed
+        clearTimeout(timeoutId);
+
+        toast.dismiss(loadingToast);
+        toast.success(`${itemsToPrint.length} item(ns) enviado(s) para impressão`);
 
         // Save the selected printers for future use
         setSelectedPrinters(printerNames);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error printing:", error);
-        toast.error("Erro ao enviar impressão");
+        toast.error(`Erro ao imprimir: ${error.message}`);
+      } finally {
+        setLoading(false);
       }
     } else if (printerNames.length === 0) {
       toast.error("Selecione pelo menos uma impressora para imprimir");
-    } else if (!currentOrder) {
-      toast.error("Não há pedido para imprimir");
+    } else {
+      toast.error("Nenhum pedido encontrado para imprimir");
     }
   };
 
-  // Function to generate the print text for the order
+  const handleReprintItem = async (itemId: string) => {
+    try {
+      setLoading(true);
+
+      // Find the item
+      const item = orderItems.find(item => item.id === itemId);
+      if (!item || !item.id) {
+        toast.error("Item não encontrado");
+        return;
+      }
+
+      // If the item is already printed, mark it as not printed (toggle)
+      if (item.printed_at) {
+        // Update in database - set printed_at to null
+        const { data, error } = await supabase
+          .from('order_items')
+          .update({ printed_at: null })
+          .eq('id', item.id)
+          .select();
+
+        if (error) throw error;
+
+        // Update local state
+        const updatedItems = orderItems.map(i =>
+          i.id === itemId ? { ...i, printed_at: null } : i
+        );
+        setOrderItems(updatedItems);
+
+        toast.success("Item marcado como não impresso");
+        setLoading(false);
+        return;
+      }
+
+      // If the item is not printed yet, print it
+      if (!currentOrder || !table) {
+        toast.error("Pedido ou mesa não encontrados");
+        return;
+      }
+
+      // Generate print text for just this item
+      const singleItemText = generateSingleItemPrintText(currentOrder, item, table);
+
+      // If no printers are selected, open the printer selector
+      if (selectedPrinters.length === 0) {
+        // Store item ID to be printed after printer selection
+        localStorage.setItem('pendingPrintItemId', itemId);
+        setShowPrinterSelectorModal(true);
+        setLoading(false);
+        return;
+      }
+
+      // Show loading toast with timeout
+      const loadingToast = toast.loading(`Enviando impressão para ${selectedPrinters.length} impressora${selectedPrinters.length > 1 ? 's' : ''}...`);
+
+      // Set a timeout to dismiss the loading toast after 20 seconds
+      const timeoutId = setTimeout(() => {
+        toast.dismiss(loadingToast);
+        toast.warning("A operação de impressão está demorando mais que o esperado. Verifique a impressora.");
+      }, 20000); // 20 seconds
+
+      // Update in database - set printed_at to current date
+      const { data, error } = await supabase
+        .from('order_items')
+        .update({ printed_at: new Date().toISOString() })
+        .eq('id', item.id)
+        .select();
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedItems = orderItems.map(i =>
+        i.id === itemId ? { ...i, printed_at: new Date().toISOString() } : i
+      );
+      setOrderItems(updatedItems);
+
+      // Send print requests to all selected printers
+      for (const printerName of selectedPrinters) {
+        await sendPrintRequest(printerName, singleItemText);
+      }
+
+      // Clear the timeout since the operation completed
+      clearTimeout(timeoutId);
+
+      toast.dismiss(loadingToast);
+      toast.success("Item enviado para impressão");
+    } catch (error: any) {
+      console.error("Erro ao processar item:", error);
+      toast.error(`Erro ao processar item: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const generatePrintText = (order: Order, items: OrderItem[], table: Table | null) => {
     const now = new Date();
     const dateStr = now.toLocaleDateString('pt-BR');
@@ -1180,10 +1356,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
       text += formatLine(itemText, priceText) + '\n';
 
-      // Observation if available
-      if (item.observation) {
-        text += `   OBS: ${item.observation}\n`;
-      }
+
 
       // Extras if available
       if (item.extras && item.extras.length > 0) {
@@ -1193,6 +1366,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
           text += formatLine(extraText, extraPriceText) + '\n';
         });
+      }
+
+      // Observation if available
+      if (item.observation) {
+        text += `   OBS: ${item.observation}\n`;
       }
 
       // Add a blank line between items
@@ -1206,47 +1384,83 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     if (order.customer_name) {
       text += `Obs: Cliente ${order.customer_name}\n`;
     }
-    
+
     // Calculate and add the total
     const subtotal = items.reduce((sum, item) => {
       // Add the base item price
       let itemTotal = item.price * item.quantity;
-      
+
       // Add extras if any
       if (item.extras && item.extras.length > 0) {
-        itemTotal += item.extras.reduce((extraSum, extra) => 
+        itemTotal += item.extras.reduce((extraSum, extra) =>
           extraSum + (extra.price * item.quantity), 0);
       }
-      
+
       return sum + itemTotal;
     }, 0);
-    
+
     // Add a blank line before totals
     text += "\n";
-    
+
     // Format the subtotal
     const subtotalText = "SUBTOTAL:";
     const subtotalPriceText = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
     text += formatLine(subtotalText, subtotalPriceText) + '\n';
-    
+
     // Add service fee if applicable
     if (order.service_fee && order.service_fee > 0) {
       const serviceFeeText = "TAXA DE SERVIÇO (10%):";
       const serviceFeePriceText = `R$ ${order.service_fee.toFixed(2).replace('.', ',')}`;
       text += formatLine(serviceFeeText, serviceFeePriceText) + '\n';
-      
+
       // Add total with service fee
       const totalText = "TOTAL:";
       const totalPriceText = `R$ ${(subtotal + order.service_fee).toFixed(2).replace('.', ',')}`;
       text += formatLine(totalText, totalPriceText) + '\n';
     }
-    
+
     text += "================================\n";
 
     return text;
   };
 
-  // Function to send the print request to the server
+  const generateSingleItemPrintText = (order: Order, item: OrderItem, table: Table | null) => {
+    const restaurantName = currentRestaurant?.name || "Restaurante";
+    const now = new Date();
+    const dateStr = now.toLocaleDateString();
+    const timeStr = now.toLocaleTimeString();
+
+    let text = "";
+
+    // Header
+    text += `${restaurantName}\n`;
+    text += "--------------------------------\n";
+    text += `Data: ${dateStr} - ${timeStr}\n`;
+    text += `Mesa: ${table ? table.number : "N/A"}\n`;
+    text += `Cliente: ${order.customer_name || "Não informado"}\n`;
+    text += `Pedido #: ${order.id?.substring(0, 8) || "Novo"}\n`;
+    text += "--------------------------------\n";
+    text += "IMPRESSÃO DE ITEM\n";
+    text += "--------------------------------\n\n";
+
+    // Item details
+    text += `${item.quantity}x ${item.name}\n`;
+
+    if (item.observation) {
+      text += `  Obs: ${item.observation}\n`;
+    }
+
+    if (item.extras && item.extras.length > 0) {
+      item.extras.forEach(extra => {
+        text += `  + ${extra.name}\n`;
+      });
+    }
+
+    text += "\n--------------------------------\n";
+
+    return text;
+  };
+
   const sendPrintRequest = async (printerName: string, text: string) => {
     try {
       // Find the printer configuration for this printer

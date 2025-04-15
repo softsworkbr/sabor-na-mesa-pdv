@@ -1,4 +1,3 @@
-
 // Export existing order-related types
 export type OrderStatus = "active" | "completed" | "cancelled" | "pending";
 
@@ -11,6 +10,7 @@ export interface OrderItem {
   quantity: number;
   observation?: string | null;
   extras?: ProductExtra[] | null;
+  printed_at?: string | null;
 }
 
 export interface Order {

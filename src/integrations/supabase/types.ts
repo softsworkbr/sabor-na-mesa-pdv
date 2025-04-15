@@ -137,6 +137,7 @@ export type Database = {
           observation: string | null
           order_id: string
           price: number
+          printed_at: string | null
           product_id: string | null
           quantity: number
           updated_at: string
@@ -149,6 +150,7 @@ export type Database = {
           observation?: string | null
           order_id: string
           price: number
+          printed_at?: string | null
           product_id?: string | null
           quantity?: number
           updated_at?: string
@@ -161,6 +163,7 @@ export type Database = {
           observation?: string | null
           order_id?: string
           price?: number
+          printed_at?: string | null
           product_id?: string | null
           quantity?: number
           updated_at?: string
