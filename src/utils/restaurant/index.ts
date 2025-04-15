@@ -1,3 +1,4 @@
+
 // Re-export all restaurant utility functions and types from a single entry point
 
 // Export types
@@ -60,7 +61,8 @@ export {
   createTable,
   updateTable,
   deleteTable,
-  getTableById
+  getTableById,
+  updateTableCustomerName
 } from './tableManagement';
 
 // Export order management functions

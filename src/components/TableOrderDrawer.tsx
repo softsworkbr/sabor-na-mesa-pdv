@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -40,6 +41,7 @@ import {
 } from "@/utils/restaurant/orderManagement";
 import {
   updateTable,
+  updateTableCustomerName,
   getOrderByTableId,
 } from "@/utils/restaurant";
 import { toast } from "sonner";
@@ -452,6 +454,19 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     });
   }, []);
 
+  const handleCustomerNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newCustomerName = e.target.value;
+    setCustomerName(newCustomerName);
+    
+    if (table?.id) {
+      try {
+        await updateTableCustomerName(table.id, newCustomerName || null);
+      } catch (error) {
+        console.error("Error saving customer name:", error);
+      }
+    }
+  };
+
   const subtotal = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const serviceFee = subtotal * 0.1;
   const total = subtotal + serviceFee;
@@ -526,7 +541,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                 <Input
                   placeholder="Nome do cliente..."
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  onChange={handleCustomerNameChange}
                   className="w-full"
                   disabled={isTableBlocked}
                 />

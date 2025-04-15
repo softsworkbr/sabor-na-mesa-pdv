@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CreateTableProps, TableItem, UpdateTableProps } from "./tableTypes";
@@ -116,6 +115,30 @@ export const getTableById = async (tableId: string): Promise<TableItem | null> =
     return data as TableItem | null;
   } catch (error: any) {
     console.error('Error fetching table:', error);
+    throw error;
+  }
+};
+
+/**
+ * Updates a table with customer name
+ */
+export const updateTableCustomerName = async (tableId: string, customerName: string | null): Promise<TableItem> => {
+  try {
+    const { data: updatedTable, error } = await supabase
+      .from('tables')
+      .update({ description: customerName })
+      .eq('id', tableId)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error(`Erro ao atualizar nome do cliente: ${error.message}`);
+      throw error;
+    }
+
+    return updatedTable as TableItem;
+  } catch (error: any) {
+    console.error('Error updating table customer name:', error);
     throw error;
   }
 };
