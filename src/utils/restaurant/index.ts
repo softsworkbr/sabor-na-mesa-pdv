@@ -8,7 +8,9 @@ export type {
   UserWithRole,
   RestaurantUserInsert,
   UserRoleUpdate,
-  RestaurantInvite
+  RestaurantInvite,
+  PrinterConfig,
+  CreatePrinterConfigProps
 } from './types';
 
 // Export table types
@@ -93,12 +95,6 @@ export {
   updatePrinterConfig,
   deletePrinterConfig
 } from './printerManagement';
-
-// Export printer config types
-export type {
-  PrinterConfig,
-  CreatePrinterConfigProps
-} from './types';
 
 // Export cash register types
 export type {

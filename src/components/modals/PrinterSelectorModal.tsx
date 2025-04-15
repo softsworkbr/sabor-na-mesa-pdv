@@ -1,9 +1,13 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { X, Printer, CheckCircle2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getPrinterConfigsByRestaurant } from "@/utils/restaurant";
 import { useAuth } from "@/contexts/AuthContext";
+import { OrderItem } from "@/utils/restaurant";
+import { toast } from "sonner";
+import { printOrderItemsToMultiplePrinters } from "@/utils/printer/printOrderService";
 
 interface PrinterSelectorModalProps {
   showModal: boolean;
@@ -11,6 +15,12 @@ interface PrinterSelectorModalProps {
   onPrinterSelect: (printerName: string) => void;
   onPrint: (printerNames: string[]) => void;
   selectedPrinter?: string;
+  items?: OrderItem[];
+  orderInfo?: {
+    orderNumber?: string;
+    tableName?: string;
+    customerName?: string;
+  };
 }
 
 const PrinterSelectorModal: React.FC<PrinterSelectorModalProps> = ({
@@ -18,9 +28,12 @@ const PrinterSelectorModal: React.FC<PrinterSelectorModalProps> = ({
   onClose,
   onPrinterSelect,
   onPrint,
-  selectedPrinter: initialSelectedPrinter
+  selectedPrinter: initialSelectedPrinter,
+  items,
+  orderInfo
 }) => {
   const [selectedPrinters, setSelectedPrinters] = useState<string[]>(initialSelectedPrinter ? [initialSelectedPrinter] : []);
+  const [isPrinting, setIsPrinting] = useState(false);
   const { currentRestaurant } = useAuth();
 
   useEffect(() => {
@@ -50,10 +63,27 @@ const PrinterSelectorModal: React.FC<PrinterSelectorModalProps> = ({
     onPrinterSelect(printerName);
   };
 
-  const handlePrint = () => {
-    if (selectedPrinters.length > 0) {
+  const handlePrint = async () => {
+    if (selectedPrinters.length === 0) return;
+    
+    try {
+      setIsPrinting(true);
+      
+      // Standard onPrint callback for backward compatibility
       onPrint(selectedPrinters);
+      
+      // Use the new printing service if items are provided
+      if (items && items.length > 0) {
+        await printOrderItemsToMultiplePrinters(selectedPrinters, items, orderInfo);
+        toast.success('Pedido enviado para impressão');
+      }
+      
       onClose();
+    } catch (error) {
+      console.error('Erro ao imprimir:', error);
+      toast.error('Falha ao imprimir. Verifique a impressora.');
+    } finally {
+      setIsPrinting(false);
     }
   };
 
@@ -161,11 +191,17 @@ const PrinterSelectorModal: React.FC<PrinterSelectorModalProps> = ({
           <Button 
             onClick={handlePrint}
             className="sm:order-2"
-            disabled={selectedPrinters.length === 0}
+            disabled={selectedPrinters.length === 0 || isPrinting}
           >
-            {selectedPrinters.length > 1 
+            {isPrinting ? (
+              <>
+                <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Imprimindo...
+              </>
+            ) : selectedPrinters.length > 1 
               ? `Imprimir em ${selectedPrinters.length} impressoras` 
-              : "Imprimir"}
+              : "Imprimir"
+            }
           </Button>
         </div>
       </div>
