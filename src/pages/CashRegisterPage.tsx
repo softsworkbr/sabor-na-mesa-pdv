@@ -1,28 +1,15 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   getCurrentCashRegister, 
   getCashRegisterTransactions
 } from '@/utils/restaurant/cashRegisterManagement';
 import { CashRegisterTransactions } from '@/components/CashRegisterTransactions';
-import { useState } from 'react';
-import { formatCurrency } from '@/utils/format';
-import { format } from 'date-fns';
-import { 
-  PlusCircle, 
-  MinusCircle, 
-  DollarSign, 
-  Clock, 
-  User, 
-  CalendarClock,
-  ArrowUpDown,
-  LockOpen,
-  Lock
-} from 'lucide-react';
+import { CashRegisterSidePanel } from '@/components/CashRegisterSidePanel';
+import { LockOpen, Lock, Plus, Printer, Trash } from 'lucide-react';
 import OpenCashRegisterModal from '@/components/modals/OpenCashRegisterModal';
 import CloseCashRegisterModal from '@/components/modals/CloseCashRegisterModal';
 import AddCashTransactionModal from '@/components/modals/AddCashTransactionModal';
@@ -31,7 +18,6 @@ const CashRegisterPage = () => {
   const { currentRestaurant, currentUser } = useAuth();
   const queryClient = useQueryClient();
   
-  // Modal states
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
@@ -68,7 +54,6 @@ const CashRegisterPage = () => {
     return transactionsTotal;
   };
 
-  // Calculate transaction statistics
   const getTransactionStats = () => {
     if (!transactions) return { payments: 0, deposits: 0, withdrawals: 0 };
     
@@ -89,189 +74,112 @@ const CashRegisterPage = () => {
   if (!currentRestaurant) return null;
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Controle de Caixa</h1>
-          <p className="text-gray-500 mt-1">
-            {currentRegister 
-              ? `Caixa ${currentRegister.status === 'open' ? 'aberto' : 'fechado'} em ${format(new Date(currentRegister.opened_at || ''), 'dd/MM/yyyy')}`
-              : 'Nenhum caixa aberto'
-            }
-          </p>
-        </div>
-        
-        {!currentRegister ? (
-          <Button 
-            onClick={() => setShowOpenModal(true)} 
-            className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
-          >
-            <LockOpen className="h-4 w-4" />
-            Abrir Caixa
-          </Button>
-        ) : currentRegister.status === 'open' ? (
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button 
-              onClick={() => setShowAddTransactionModal(true)} 
-              variant="outline" 
-              className="flex items-center gap-2"
-            >
-              <ArrowUpDown className="h-4 w-4" />
-              Nova Transação
-            </Button>
-            <Button 
-              onClick={() => setShowCloseModal(true)} 
-              className="bg-red-600 hover:bg-red-700 flex items-center gap-2"
-            >
-              <Lock className="h-4 w-4" />
-              Fechar Caixa
-            </Button>
-          </div>
-        ) : null}
-      </div>
-
-      {currentRegister && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center text-blue-600">
-                <Clock className="h-4 w-4 mr-1" />
-                Aberto por
-              </CardDescription>
-              <CardTitle className="text-xl flex items-center">
-                <User className="h-5 w-5 mr-2 text-blue-500" />
-                {currentUser?.name || 'Usuário'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-gray-500">
-                <CalendarClock className="h-4 w-4 inline mr-1" />
-                {format(new Date(currentRegister.opened_at || ''), 'dd/MM/yyyy HH:mm')}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center text-blue-600">
-                <DollarSign className="h-4 w-4 mr-1" />
-                Saldo Inicial
-              </CardDescription>
-              <CardTitle className="text-xl">
-                {formatCurrency(currentRegister.opening_balance)}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-gray-500">
-                {currentRegister.opening_notes || 'Sem observações'}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center text-green-600">
-                <PlusCircle className="h-4 w-4 mr-1" />
-                Entradas
-              </CardDescription>
-              <CardTitle className="text-xl text-green-700">
-                {formatCurrency(
-                  transactions?.reduce((sum, t) => 
-                    t.type === 'payment' || t.type === 'deposit' ? sum + t.amount : sum, 0) || 0
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Pagamentos:</span>
-                <span className="font-medium">{stats.payments}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Depósitos:</span>
-                <span className="font-medium">{stats.deposits}</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription className="flex items-center text-red-600">
-                <MinusCircle className="h-4 w-4 mr-1" />
-                Saídas
-              </CardDescription>
-              <CardTitle className="text-xl text-red-700">
-                {formatCurrency(
-                  transactions?.reduce((sum, t) => 
-                    t.type === 'withdrawal' ? sum + t.amount : sum, 0) || 0
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Retiradas:</span>
-                <span className="font-medium">{stats.withdrawals}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Saldo Atual:</span>
-                <span className="font-medium">{formatCurrency(calculateExpectedBalance())}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {currentRegister && transactions && (
-        <CashRegisterTransactions 
-          transactions={transactions} 
-          registerId={currentRegister.id || ''} 
+    <div className="flex h-screen overflow-hidden">
+      {currentRegister ? (
+        <CashRegisterSidePanel 
+          register={currentRegister} 
+          currentUser={currentUser} 
         />
-      )}
+      ) : null}
 
-      {!currentRegister && !isLoadingRegister && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Nenhum Caixa Aberto</CardTitle>
-            <CardDescription>
-              Para começar a registrar transações, você precisa abrir o caixa primeiro.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      <div className="flex-1 overflow-auto p-4">
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">
+            {currentRegister 
+              ? `Caixa #${currentRegister.id}` 
+              : 'Controle de Caixa'}
+          </h1>
+
+          {!currentRegister ? (
             <Button 
               onClick={() => setShowOpenModal(true)} 
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
             >
+              <LockOpen className="h-4 w-4" />
               Abrir Caixa
             </Button>
-          </CardContent>
-        </Card>
-      )}
+          ) : currentRegister.status === 'open' ? (
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowAddTransactionModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Adicionar Entrada / Saída
+              </Button>
+              <Button
+                onClick={() => setShowCloseModal(true)}
+                className="bg-red-600 hover:bg-red-700 flex items-center gap-2"
+              >
+                <Lock className="h-4 w-4" />
+                Fechar Caixa
+              </Button>
+            </div>
+          ) : null}
+        </div>
 
-      {/* Modals */}
-      <OpenCashRegisterModal
-        showModal={showOpenModal}
-        onClose={() => setShowOpenModal(false)}
-        onSuccess={handleRefreshData}
-        restaurantId={currentRestaurant.id}
-      />
+        {currentRegister && transactions && (
+          <>
+            <div className="flex gap-4 mb-4">
+              <Button variant="outline" className="flex items-center gap-2">
+                <Trash className="h-4 w-4" />
+                Excluir Lançamento
+              </Button>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Printer className="h-4 w-4" />
+                Imprimir Movimentação
+              </Button>
+              <Button variant="outline" className="flex items-center gap-2">
+                <Printer className="h-4 w-4" />
+                Imprimir Resumo
+              </Button>
+            </div>
 
-      {currentRegister && (
-        <>
-          <CloseCashRegisterModal
-            showModal={showCloseModal}
-            onClose={() => setShowCloseModal(false)}
-            onSuccess={handleRefreshData}
-            registerId={currentRegister.id || ''}
-            expectedBalance={calculateExpectedBalance()}
-          />
+            <CashRegisterTransactions 
+              transactions={transactions} 
+              registerId={currentRegister.id || ''} 
+            />
+          </>
+        )}
 
-          <AddCashTransactionModal
-            showModal={showAddTransactionModal}
-            onClose={() => setShowAddTransactionModal(false)}
-            onSuccess={handleRefreshData}
-            registerId={currentRegister.id || ''}
-          />
-        </>
-      )}
+        {!currentRegister && !isLoadingRegister && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-center text-gray-500">
+                Nenhum caixa aberto. Clique em "Abrir Caixa" para começar.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Modals */}
+        <OpenCashRegisterModal
+          showModal={showOpenModal}
+          onClose={() => setShowOpenModal(false)}
+          onSuccess={handleRefreshData}
+          restaurantId={currentRestaurant.id}
+        />
+
+        {currentRegister && (
+          <>
+            <CloseCashRegisterModal
+              showModal={showCloseModal}
+              onClose={() => setShowCloseModal(false)}
+              onSuccess={handleRefreshData}
+              registerId={currentRegister.id || ''}
+              expectedBalance={calculateExpectedBalance()}
+            />
+
+            <AddCashTransactionModal
+              showModal={showAddTransactionModal}
+              onClose={() => setShowAddTransactionModal(false)}
+              onSuccess={handleRefreshData}
+              registerId={currentRegister.id || ''}
+            />
+          </>
+        )}
+      </div>
     </div>
   );
 };

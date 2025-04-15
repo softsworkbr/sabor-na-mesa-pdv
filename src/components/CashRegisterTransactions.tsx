@@ -60,45 +60,17 @@ export const CashRegisterTransactions = ({ transactions }: CashRegisterTransacti
   }, { income: 0, expense: 0 });
 
   return (
-    <Card className="mt-6">
-      <CardHeader className="pb-3">
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <CardTitle className="text-2xl font-bold">Transações</CardTitle>
-          <div className="relative w-full md:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              placeholder="Buscar transações..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-            <p className="text-sm text-blue-600 font-medium">Total de Transações</p>
-            <p className="text-2xl font-bold">{transactions.length}</p>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg border border-green-100">
-            <p className="text-sm text-green-600 font-medium">Total de Entradas</p>
-            <p className="text-2xl font-bold text-green-700">{formatCurrency(totals.income)}</p>
-          </div>
-          <div className="bg-red-50 p-4 rounded-lg border border-red-100">
-            <p className="text-sm text-red-600 font-medium">Total de Saídas</p>
-            <p className="text-2xl font-bold text-red-700">{formatCurrency(totals.expense)}</p>
-          </div>
-        </div>
-        
+    <Card className="mt-2">
+      <CardContent className="p-0">
         <div className="rounded-md border overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-gray-50">
-                <TableHead className="w-[180px]">Data/Hora</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Observações</TableHead>
+              <TableRow className="bg-gray-100">
+                <TableHead className="w-[180px]">Data / Hora</TableHead>
+                <TableHead>Descrição</TableHead>
+                <TableHead className="text-right">Entrada</TableHead>
+                <TableHead className="text-right">Saída</TableHead>
+                <TableHead>Forma Pagto.</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
               </TableRow>
             </TableHeader>
@@ -106,38 +78,31 @@ export const CashRegisterTransactions = ({ transactions }: CashRegisterTransacti
               {filteredTransactions.map((transaction) => (
                 <TableRow key={transaction.id} className="hover:bg-gray-50">
                   <TableCell className="font-medium">
-                    <div className="flex flex-col">
-                      <span>{format(new Date(transaction.created_at || ''), 'dd/MM/yyyy')}</span>
-                      <span className="text-xs text-gray-500">{format(new Date(transaction.created_at || ''), 'HH:mm')}</span>
-                    </div>
+                    {format(new Date(transaction.created_at || ''), 'dd/MM/yyyy HH:mm')}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={`flex items-center gap-1 ${typeColors[transaction.type]}`}>
-                      {typeIcons[transaction.type]}
-                      {typeLabels[transaction.type]}
-                    </Badge>
+                  <TableCell>{transaction.notes || '-'}</TableCell>
+                  <TableCell className="text-right text-green-600">
+                    {transaction.type !== 'withdrawal' 
+                      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+                          .format(transaction.amount)
+                      : '-'}
                   </TableCell>
-                  <TableCell className={`text-right font-medium ${
-                    transaction.type === 'withdrawal' 
-                      ? 'text-red-600' 
-                      : transaction.type === 'deposit'
-                        ? 'text-green-600'
-                        : 'text-blue-600'
-                  }`}>
-                    {transaction.type === 'withdrawal' ? '- ' : '+ '}
-                    {formatCurrency(transaction.amount)}
+                  <TableCell className="text-right text-red-600">
+                    {transaction.type === 'withdrawal'
+                      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+                          .format(transaction.amount)
+                      : '-'}
                   </TableCell>
-                  <TableCell className="max-w-[200px] truncate">
-                    {transaction.notes || '-'}
-                  </TableCell>
+                  <TableCell>{transaction.payment_method_id ? 'Cartão' : 'Dinheiro'}</TableCell>
                   <TableCell className="text-right font-medium">
-                    {formatCurrency(transaction.balance)}
+                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+                      .format(transaction.balance)}
                   </TableCell>
                 </TableRow>
               ))}
               {filteredTransactions.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                     {searchTerm 
                       ? 'Nenhuma transação encontrada para esta busca' 
                       : 'Nenhuma transação registrada'}
