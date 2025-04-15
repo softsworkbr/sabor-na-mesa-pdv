@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Profile, RestaurantUserInsert, UserRoleUpdate, UserWithRole } from "./types";
@@ -66,39 +65,15 @@ export const addUserToRestaurant = async (
     let userId: string;
 
     if (!profileData) {
-      // Se não encontrou o perfil, verificar se o usuário existe no sistema de autenticação
-      const { data: authUser, error: authError } = await supabase.auth.admin.getUserByEmail(email);
-      
-      if (authError || !authUser?.user) {
-        // Se não encontrou o usuário na autenticação, informar que o email precisa estar cadastrado
-        toast.error('Usuário não encontrado. O email informado precisa estar cadastrado no sistema antes de ser vinculado ao restaurante.');
-        toast.info('Peça ao usuário que faça login no sistema pelo menos uma vez antes de tentar vinculá-lo.');
-        return false;
-      }
-      
-      // Usuário existe na autenticação, mas não tem perfil. Criar um perfil temporário
-      const { error: createProfileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authUser.user.id,
-          email: email,
-          username: email.split('@')[0], // Criar um username básico a partir do email
-          full_name: null,
-          avatar_url: null
-        });
-      
-      if (createProfileError) {
-        console.error('Erro ao criar perfil temporário:', createProfileError);
-        toast.error(`Não foi possível criar um perfil para este usuário. ${createProfileError.message}`);
-        return false;
-      }
-      
-      userId = authUser.user.id;
+      // Se não encontrou o perfil, informar que o email precisa estar cadastrado
+      toast.error('Usuário não encontrado. O email informado precisa estar cadastrado no sistema antes de ser vinculado ao restaurante.');
+      toast.info('Peça ao usuário que faça login no sistema pelo menos uma vez antes de tentar vinculá-lo.');
+      return false;
     } else {
       userId = profileData.id;
     }
 
-    // Se encontrou o perfil ou criou um novo, vincular ao restaurante
+    // Se encontrou o perfil, vincular ao restaurante
     const insertData: RestaurantUserInsert = {
       restaurant_id: restaurantId,
       user_id: userId,

@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,7 +13,8 @@ interface Restaurant {
   logo_url?: string | null;
 }
 
-interface UserData {
+// Export the UserData interface so it can be used in other components
+export interface UserData {
   id: string;
   email: string;
   name?: string;
