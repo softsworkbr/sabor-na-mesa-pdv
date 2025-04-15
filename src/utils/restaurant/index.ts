@@ -1,4 +1,3 @@
-
 // Re-export all restaurant utility functions and types from a single entry point
 
 // Export types
@@ -96,3 +95,20 @@ export type {
   PrinterConfig,
   CreatePrinterConfigProps
 } from './types';
+
+// Export cash register types
+export type {
+  CashRegister,
+  CashRegisterTransaction,
+  OpenCashRegisterProps,
+  CloseCashRegisterProps
+} from './cashRegisterTypes';
+
+// Export cash register management functions
+export {
+  openCashRegister,
+  closeCashRegister,
+  getCurrentCashRegister,
+  createCashRegisterTransaction,
+  getCashRegisterTransactions
+} from './cashRegisterManagement';

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
@@ -461,22 +460,64 @@ export const completeOrderPayment = async (
   serviceFeeAmount?: number
 ): Promise<void> => {
   try {
+    // Get the current cash register
+    const { data: restaurant } = await supabase
+      .from('restaurant_users')
+      .select('restaurant_id')
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+      .single();
+
+    if (!restaurant) {
+      throw new Error('Restaurant not found');
+    }
+
+    const currentRegister = await getCurrentCashRegister(restaurant.restaurant_id);
+    if (!currentRegister) {
+      throw new Error('Não há caixa aberto. Por favor, abra o caixa antes de processar pagamentos.');
+    }
+
+    // Update order with cash register reference and status
     const { error } = await supabase
       .from('orders')
       .update({ 
         payment_status: 'paid',
-        service_fee: includeServiceFee && serviceFeeAmount ? serviceFeeAmount : 0
+        service_fee: includeServiceFee && serviceFeeAmount ? serviceFeeAmount : 0,
+        cash_register_id: currentRegister.id
       })
       .eq('id', orderId);
 
-    if (error) {
-      toast.error(`Erro ao finalizar pagamento: ${error.message}`);
-      throw error;
+    if (error) throw error;
+
+    // Create transaction for each payment
+    const { data: payments, error: paymentsError } = await supabase
+      .from('order_payments')
+      .select('*')
+      .eq('order_id', orderId);
+
+    if (paymentsError) throw paymentsError;
+
+    for (const payment of payments || []) {
+      const transaction = await createCashRegisterTransaction({
+        cash_register_id: currentRegister.id,
+        order_id: orderId,
+        order_payment_id: payment.id,
+        amount: payment.amount,
+        type: 'payment',
+        payment_method_id: payment.payment_method_id,
+        notes: `Pagamento do pedido #${orderId}`
+      });
+
+      // Update order payment with transaction reference
+      await supabase
+        .from('order_payments')
+        .update({ cash_register_transaction_id: transaction.id })
+        .eq('id', payment.id);
     }
 
     toast.success('Pagamento finalizado com sucesso!');
   } catch (error: any) {
     console.error('Error completing order payment:', error);
+    toast.error(error.message);
     throw error;
   }
 };

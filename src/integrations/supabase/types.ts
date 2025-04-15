@@ -9,6 +9,122 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      cash_register_transactions: {
+        Row: {
+          amount: number
+          cash_register_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          order_id: string | null
+          order_payment_id: string | null
+          payment_method_id: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          cash_register_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          order_payment_id?: string | null
+          payment_method_id?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          cash_register_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          order_payment_id?: string | null
+          payment_method_id?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_register_transactions_cash_register_id_fkey"
+            columns: ["cash_register_id"]
+            isOneToOne: false
+            referencedRelation: "cash_registers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_transactions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_transactions_order_payment_id_fkey"
+            columns: ["order_payment_id"]
+            isOneToOne: false
+            referencedRelation: "order_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_register_transactions_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_registers: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closing_balance: number | null
+          closing_notes: string | null
+          created_at: string
+          id: string
+          opened_at: string
+          opened_by: string
+          opening_balance: number
+          opening_notes: string | null
+          restaurant_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_balance?: number | null
+          closing_notes?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          opened_by: string
+          opening_balance?: number
+          opening_notes?: string | null
+          restaurant_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_balance?: number | null
+          closing_notes?: string | null
+          created_at?: string
+          id?: string
+          opened_at?: string
+          opened_by?: string
+          opening_balance?: number
+          opening_notes?: string | null
+          restaurant_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -66,6 +182,7 @@ export type Database = {
       order_payments: {
         Row: {
           amount: number
+          cash_register_transaction_id: string | null
           created_at: string
           id: string
           include_service_fee: boolean
@@ -75,6 +192,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          cash_register_transaction_id?: string | null
           created_at?: string
           id?: string
           include_service_fee?: boolean
@@ -84,6 +202,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          cash_register_transaction_id?: string | null
           created_at?: string
           id?: string
           include_service_fee?: boolean
@@ -92,6 +211,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "order_payments_cash_register_transaction_id_fkey"
+            columns: ["cash_register_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "cash_register_transactions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "order_payments_order_id_fkey"
             columns: ["order_id"]
@@ -110,6 +236,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          cash_register_id: string | null
           created_at: string
           customer_name: string | null
           id: string
@@ -121,6 +248,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          cash_register_id?: string | null
           created_at?: string
           customer_name?: string | null
           id?: string
@@ -132,6 +260,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          cash_register_id?: string | null
           created_at?: string
           customer_name?: string | null
           id?: string
@@ -143,6 +272,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_cash_register_id_fkey"
+            columns: ["cash_register_id"]
+            isOneToOne: false
+            referencedRelation: "cash_registers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_table_id_fkey"
             columns: ["table_id"]
