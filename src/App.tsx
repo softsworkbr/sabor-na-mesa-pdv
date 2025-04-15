@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +11,7 @@ import MenuPage from "./pages/MenuPage";
 import UsersPage from "./pages/UsersPage";
 import PrintersPage from "./pages/PrintersPage";
 import SettingsPage from "./pages/SettingsPage";
+import CashRegisterPage from "./pages/CashRegisterPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
