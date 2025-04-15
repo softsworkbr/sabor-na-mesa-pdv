@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,8 +18,7 @@ import {
   getOrderById,
   updateOrder,
   Order,
-  OrderStatus,
-  updateOrderItemPrintStatus
+  OrderStatus
 } from "@/utils/restaurant";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -29,7 +29,6 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency } from "@/utils/format";
-import OrderProduct from "@/components/OrderProduct";
 
 const statusColors = {
   active: "bg-yellow-500",
@@ -79,8 +78,7 @@ const OrdersPage = () => {
           return {
             ...order,
             itemsCount: fullOrder?.items?.length || 0,
-            total: fullOrder?.total_amount || 0,
-            items: fullOrder?.items
+            total: fullOrder?.total_amount || 0
           };
         })
       );
@@ -117,15 +115,6 @@ const OrdersPage = () => {
         return { label: "Ver Detalhes", value: "cancelled" };
       default:
         return { label: "Atualizar", value: "active" };
-    }
-  };
-
-  const handleTogglePrintStatus = async (itemId: string, printed: boolean) => {
-    try {
-      await updateOrderItemPrintStatus(itemId, printed);
-      refetch(); // Refresh the orders list
-    } catch (error) {
-      console.error("Error updating print status:", error);
     }
   };
 
@@ -201,7 +190,6 @@ const OrdersPage = () => {
           filteredOrders.map((order) => (
             <Card key={order.id} className="overflow-hidden">
               <div className={`h-1 ${statusColors[order.status]}`} />
-              
               <CardContent className="p-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div className="flex items-center gap-4">
@@ -268,17 +256,6 @@ const OrdersPage = () => {
                     </div>
                   </div>
                 </div>
-                {order.items?.map((item, index) => (
-                  <OrderProduct
-                    key={`${item.id || item.product_id}-${index}-${item.observation || "no-obs"}`}
-                    item={item}
-                    onChangeQuantity={(newQuantity) => console.log('onChangeQuantity is not defined in this context')}
-                    onRemove={() => console.log('onRemove is not defined in this context')}
-                    onTogglePrintStatus={(printed) => item.id && handleTogglePrintStatus(item.id, printed)}
-                    disabled={false}
-                    isMobile={false}
-                  />
-                ))}
               </CardContent>
             </Card>
           ))

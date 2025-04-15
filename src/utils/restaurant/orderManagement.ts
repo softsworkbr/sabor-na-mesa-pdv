@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
@@ -14,7 +15,7 @@ import {
 } from './services/orderItemsService';
 import {
   addOrderPayment as addPayment,
-  getPaymentMethodsList as getPaymentMethods
+  getPaymentMethods as getPaymentMethodsList
 } from './services/paymentService';
 import { 
   getCurrentCashRegister,
@@ -302,30 +303,6 @@ export const completeOrderPayment = async (
   } catch (error: any) {
     console.error('Error completing order payment:', error);
     toast.error(error.message);
-    throw error;
-  }
-};
-
-/**
- * Updates the printed status of an order item
- */
-export const updateOrderItemPrintStatus = async (itemId: string, printed: boolean): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('order_items')
-      .update({
-        printed_at: printed ? new Date().toISOString() : null
-      })
-      .eq('id', itemId);
-
-    if (error) {
-      toast.error(`Erro ao atualizar status de impressão: ${error.message}`);
-      throw error;
-    }
-
-    toast.success(printed ? 'Item marcado como impresso' : 'Item desmarcado');
-  } catch (error: any) {
-    console.error('Error updating order item print status:', error);
     throw error;
   }
 };
