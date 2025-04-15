@@ -1,12 +1,5 @@
-import emailjs from '@emailjs/browser';
-
-// Constantes para EmailJS
-const EMAILJS_SERVICE_ID = 'service_sabor_na_mesa'; // Substitua pelo seu Service ID do EmailJS
-const EMAILJS_TEMPLATE_ID_INVITE = 'template_restaurant_invite'; // Substitua pelo seu Template ID do EmailJS
-const EMAILJS_PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY'; // Substitua pela sua Public Key do EmailJS
-
-// Inicializar EmailJS
-emailjs.init(EMAILJS_PUBLIC_KEY);
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 /**
  * Envia um email de convite para um usuário se juntar ao restaurante
@@ -30,28 +23,56 @@ export const sendRestaurantInviteEmail = async (
     // Tradução da função para português
     const roleName = role === 'manager' ? 'Gerente' : 'Funcionário';
     
-    // Enviar email usando EmailJS
-    const response = await emailjs.send(
-      EMAILJS_SERVICE_ID,
-      EMAILJS_TEMPLATE_ID_INVITE,
-      {
-        to_email: email,
-        restaurant_name: restaurantName,
-        invite_link: inviteLink,
-        role_name: roleName,
-        invite_id: inviteId
-      }
+    // MODO DE DESENVOLVIMENTO: Simular o envio de email e mostrar informações úteis
+    console.log('🔧 MODO DE DESENVOLVIMENTO: Simulando envio de email');
+    console.log('📧 Email seria enviado para:', email);
+    console.log('🏢 Restaurante:', restaurantName);
+    console.log('🔗 Link de convite:', inviteLink);
+    console.log('👤 Função:', roleName);
+    
+    // Mostrar toast com informações do convite
+    toast.info(
+      `Modo de desenvolvimento: Email simulado para ${email}. Link de convite: ${inviteLink}`,
+      { duration: 10000 }
     );
     
-    if (response.status === 200) {
-      console.log('Email de convite enviado com sucesso:', response);
-      return true;
-    } else {
-      console.error('Erro ao enviar email de convite:', response);
+    // Comentando o código que chama a Edge Function por enquanto
+    /*
+    // Chamar a Edge Function do Supabase para enviar o email
+    const { data, error } = await supabase.functions.invoke('send-invite-email', {
+      body: { 
+        email, 
+        restaurantName, 
+        inviteId, 
+        role 
+      }
+    });
+    
+    if (error) {
+      console.error('Erro ao chamar a Edge Function para envio de email:', error);
       return false;
     }
+    
+    if (data?.success) {
+      console.log('Email de convite enviado com sucesso:', data);
+      return true;
+    } else {
+      console.error('Erro ao enviar email de convite:', data);
+      return false;
+    }
+    */
+    
+    // Sempre retorna sucesso em desenvolvimento
+    return true;
   } catch (error) {
     console.error('Erro ao enviar email de convite:', error);
-    return false;
+    
+    // Mesmo com erro, retornamos true para não bloquear o fluxo em desenvolvimento
+    toast.warning(
+      `Erro ao enviar email, mas o convite foi criado. Email: ${email}`,
+      { duration: 10000 }
+    );
+    
+    return true;
   }
 };

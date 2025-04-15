@@ -124,16 +124,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
 
         setRestaurants(userRestaurants);
-        
+
         // Try to get the last used restaurant from localStorage
         try {
           const lastUsedRestaurantString = localStorage.getItem(LAST_RESTAURANT_KEY);
           if (lastUsedRestaurantString) {
             const lastUsedRestaurant = JSON.parse(lastUsedRestaurantString);
-            
+
             // Check if the last used restaurant is still in the user's list
             const existingRestaurant = userRestaurants.find(r => r.id === lastUsedRestaurant.id);
-            
+
             if (existingRestaurant) {
               handleSetCurrentRestaurant(existingRestaurant);
               return;
@@ -142,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (e) {
           console.error('Error parsing last used restaurant:', e);
         }
-        
+
         // Default to first restaurant if no last used restaurant exists
         handleSetCurrentRestaurant(userRestaurants[0]);
       } else {
@@ -154,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           { id: '3', name: 'Sabor na Mesa - Ipanema', role: 'staff' },
         ];
         setRestaurants(mockRestaurants);
-        
+
         if (!currentRestaurant) {
           // Try to get the last used restaurant from localStorage
           try {
@@ -163,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const lastUsedRestaurant = JSON.parse(lastUsedRestaurantString);
               // Check if the mocked restaurant with this ID exists
               const mockedRestaurant = mockRestaurants.find(r => r.id === lastUsedRestaurant.id);
-              
+
               if (mockedRestaurant) {
                 handleSetCurrentRestaurant(mockedRestaurant);
                 return;
@@ -172,7 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (e) {
             console.error('Error parsing last used restaurant:', e);
           }
-          
+
           // Default to first restaurant if no last used restaurant exists
           handleSetCurrentRestaurant(mockRestaurants[0]);
         }
@@ -233,9 +233,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         }
       });
-      
+
       if (error) throw error;
-      
+
       // Check if the user was created and a confirmation email was sent
       if (error?.status !== 429) {
         toast.success("Cadastro realizado com sucesso! Verifique seu email para confirmação.");
@@ -264,14 +264,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      session, 
-      user, 
+    <AuthContext.Provider value={{
+      session,
+      user,
       currentUser,
-      loading, 
-      signIn, 
-      signUp, 
-      signOut, 
+      loading,
+      signIn,
+      signUp,
+      signOut,
       restaurants,
       currentRestaurant,
       setCurrentRestaurant: handleSetCurrentRestaurant,

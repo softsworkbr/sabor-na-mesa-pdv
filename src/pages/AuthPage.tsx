@@ -4,8 +4,6 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '@/contexts/AuthContext';
-import { PostgrestError } from '@supabase/supabase-js';
-import { RestaurantInvite, Restaurant } from '@/types/supabase';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,6 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { addUserToRestaurant } from '@/utils/restaurant/userManagement';
 
 // Esquemas de validação
 const loginSchema = z.object({
@@ -24,9 +23,9 @@ const loginSchema = z.object({
 
 const registerSchema = z.object({
   email: z.string().email('Email inválido'),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   username: z.string().min(3, 'Nome de usuário deve ter pelo menos 3 caracteres'),
   fullName: z.string().min(3, 'Nome completo deve ter pelo menos 3 caracteres'),
-  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   confirmPassword: z.string().min(6, 'Confirme sua senha'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não conferem",
@@ -36,7 +35,19 @@ const registerSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
-// Definir interface para o convite do restaurante
+// Interfaces para tipagem
+interface RestaurantInvite {
+  id: string;
+  restaurant_id: string;
+  email: string;
+  role: string;
+  status: string;
+  invited_at: string;
+  accepted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface Restaurant {
   id: string;
   name: string;
@@ -68,8 +79,14 @@ const AuthPage: React.FC = () => {
     const queryParams = new URLSearchParams(location.search);
     const inviteId = queryParams.get('invite');
 
+    console.log('Parâmetros da URL:', location.search);
+    console.log('ID do convite extraído da URL:', inviteId);
+
     if (inviteId) {
-      fetchInviteInfo(inviteId);
+      // Remover possíveis espaços em branco ou caracteres inválidos
+      const cleanInviteId = inviteId.trim();
+      console.log('ID do convite limpo:', cleanInviteId);
+      fetchInviteInfo(cleanInviteId);
     }
   }, [location]);
 
@@ -77,37 +94,112 @@ const AuthPage: React.FC = () => {
   const fetchInviteInfo = async (inviteId: string) => {
     setLoadingInvite(true);
     try {
-      // Usar any para contornar o problema de tipagem
-      const { data: invite, error: inviteError } = await (supabase
-        .from('restaurant_invites') as any)
+      console.log('Buscando convite com ID:', inviteId);
+
+      // Verificar se existem convites na tabela (consulta geral)
+      const { data: allInvites, error: allInvitesError } = await supabase
+        .from('restaurant_invites')
+        .select('id, email, status')
+        .limit(5);
+
+      console.log('Amostra de convites na tabela:', allInvites);
+      console.log('Erro na consulta geral:', allInvitesError);
+
+      // Verificar se o ID está no formato correto
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const isValidUUID = uuidRegex.test(inviteId);
+      console.log('O ID do convite é um UUID válido?', isValidUUID);
+
+      // Buscar convite sem filtro de status
+      const { data: inviteNoStatus, error: noStatusError } = await supabase
+        .from('restaurant_invites')
+        .select('*')
+        .eq('id', inviteId);
+
+      console.log('Busca sem filtro de status:', { inviteNoStatus, error: noStatusError });
+
+      // Busca com like para verificar se há problemas com o formato exato
+      const { data: invitesLike, error: likeError } = await supabase
+        .from('restaurant_invites')
+        .select('*')
+        .like('id', `%${inviteId.substring(0, 8)}%`);
+
+      console.log('Busca com LIKE parcial:', { invitesLike, error: likeError });
+
+      // Primeiro verificamos se o convite existe sem usar .single()
+      const { data: invites, error: inviteQueryError } = await supabase
+        .from('restaurant_invites')
         .select('*')
         .eq('id', inviteId)
-        .eq('status', 'pending')
-        .single();
+        .eq('status', 'pending');
 
-      if (inviteError || !invite) {
-        console.error('Erro ao buscar convite:', inviteError);
-        toast.error('Convite inválido ou expirado.');
+      console.log('Resultado da busca de convites:', { invites, error: inviteQueryError });
+
+      if (inviteQueryError) {
+        console.error('Erro ao buscar convite:', inviteQueryError);
+        toast.error('Erro ao buscar convite.');
         return;
       }
 
-      // Converter para unknown primeiro e depois para o tipo desejado
-      const typedInvite = (invite as unknown) as RestaurantInvite;
+      // Verificar se encontrou algum convite
+      if (!invites || invites.length === 0) {
+        console.error('Convite não encontrado ou já utilizado');
+
+        // Verificar se existe o convite com qualquer status
+        const { data: anyInvites } = await supabase
+          .from('restaurant_invites')
+          .select('id, status, email')
+          .eq('id', inviteId);
+
+        console.log('Verificação de convite com qualquer status:', anyInvites);
+
+        if (anyInvites && anyInvites.length > 0) {
+          const invite = anyInvites[0];
+          if (invite.status !== 'pending') {
+            toast.error(`Convite já ${invite.status === 'accepted' ? 'aceito' : 'expirado'}.`);
+          } else {
+            toast.error('Convite inválido ou expirado.');
+          }
+        } else {
+          // Se não encontrou nada, verificar se há convites com o ID parcial
+          if (invitesLike && invitesLike.length > 0) {
+            console.log('Encontrou convites com ID parcial:', invitesLike);
+            toast.error('Convite encontrado com ID parcial, mas não exato. Verifique o link.');
+          } else if (allInvites && allInvites.length > 0) {
+            toast.error('Convite não encontrado. Verifique o link e tente novamente.');
+          } else {
+            toast.error('Não há convites no sistema. Verifique se a tabela foi criada corretamente.');
+          }
+        }
+        return;
+      }
+
+      // Usar o primeiro convite encontrado
+      const typedInvite = invites[0] as RestaurantInvite;
+      console.log('Convite encontrado:', typedInvite);
 
       // Buscar informações do restaurante
-      const { data: restaurant, error: restaurantError } = await supabase
+      const { data: restaurants, error: restaurantQueryError } = await supabase
         .from('restaurants')
         .select('name')
-        .eq('id', typedInvite.restaurant_id)
-        .single();
+        .eq('id', typedInvite.restaurant_id);
 
-      if (restaurantError || !restaurant) {
-        console.error('Erro ao buscar restaurante:', restaurantError);
+      console.log('Resultado da busca de restaurante:', { restaurants, error: restaurantQueryError });
+
+      if (restaurantQueryError) {
+        console.error('Erro ao buscar restaurante:', restaurantQueryError);
         toast.error('Erro ao buscar informações do restaurante.');
         return;
       }
 
-      const typedRestaurant = (restaurant as unknown) as Restaurant;
+      // Verificar se encontrou o restaurante
+      if (!restaurants || restaurants.length === 0) {
+        console.error('Restaurante não encontrado');
+        toast.error('Restaurante não encontrado.');
+        return;
+      }
+
+      const typedRestaurant = restaurants[0] as Restaurant;
 
       // Definir as informações do convite
       setInviteInfo({
@@ -137,15 +229,22 @@ const AuthPage: React.FC = () => {
 
   // Aceitar o convite após o registro bem-sucedido
   const acceptInvite = async () => {
-    if (!inviteInfo || !user) return;
+    if (!inviteInfo || !user) {
+      console.log('Não foi possível aceitar o convite: inviteInfo ou user não definidos', { inviteInfo, user });
+      return;
+    }
 
     try {
-      // Buscar dados do convite usando any para contornar problemas de tipagem
-      const { data: inviteData, error: inviteDataError } = await (supabase
-        .from('restaurant_invites') as any)
+      console.log('Iniciando aceitação de convite para usuário:', user.id);
+      console.log('Informações do convite:', inviteInfo);
+
+      const { data: inviteData, error: inviteDataError } = await supabase
+        .from('restaurant_invites')
         .select('restaurant_id, role')
         .eq('id', inviteInfo.id)
         .single();
+
+      console.log('Dados do convite recuperados:', { inviteData, error: inviteDataError });
 
       if (inviteDataError || !inviteData) {
         console.error('Erro ao buscar dados do convite:', inviteDataError);
@@ -153,29 +252,64 @@ const AuthPage: React.FC = () => {
         return;
       }
 
-      // Converter para unknown primeiro e depois para o tipo desejado
-      const typedInviteData = (inviteData as unknown) as Pick<RestaurantInvite, 'restaurant_id' | 'role'>;
+      const typedInviteData = inviteData as Pick<RestaurantInvite, 'restaurant_id' | 'role'>;
+      console.log('Dados tipados do convite:', typedInviteData);
 
-      // Adicionar usuário ao restaurante
-      const added = await addUserToRestaurant(
-        typedInviteData.restaurant_id,
-        user.id,
-        typedInviteData.role as 'manager' | 'staff'
-      );
+      // Verificar se o usuário já está vinculado ao restaurante
+      const { data: existingUser, error: existingUserError } = await supabase
+        .from('restaurant_users')
+        .select('*')
+        .eq('restaurant_id', typedInviteData.restaurant_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (!added) {
-        toast.error('Erro ao adicionar você ao restaurante.');
-        return;
+      console.log('Verificação de usuário existente:', { existingUser, error: existingUserError });
+
+      if (existingUser) {
+        console.log('Usuário já vinculado ao restaurante');
+        toast.info('Você já está vinculado a este restaurante.');
+      } else {
+        // Inserir diretamente na tabela restaurant_users
+        const insertData = {
+          restaurant_id: typedInviteData.restaurant_id,
+          user_id: user.id,
+          role: typedInviteData.role
+        };
+
+        console.log('Tentando inserir usuário no restaurante:', insertData);
+
+        const { error: insertError } = await supabase
+          .from('restaurant_users')
+          .insert(insertData);
+
+        console.log('Resultado da inserção:', { error: insertError });
+
+        if (insertError) {
+          // Verificar erro de chave duplicada
+          if (insertError.code === '23505') {
+            console.log('Erro de duplicação ao inserir usuário');
+            toast.info('Você já está vinculado a este restaurante.');
+          } else {
+            console.error('Erro ao vincular usuário ao restaurante:', insertError);
+            toast.error('Erro ao vincular você ao restaurante.');
+            return;
+          }
+        } else {
+          console.log('Usuário vinculado com sucesso ao restaurante');
+        }
       }
 
       // Atualizar status do convite para aceito
-      const { error: updateError } = await (supabase
-        .from('restaurant_invites') as any)
+      console.log('Atualizando status do convite para aceito');
+      const { error: updateError } = await supabase
+        .from('restaurant_invites')
         .update({
           status: 'accepted',
           accepted_at: new Date().toISOString()
         })
         .eq('id', inviteInfo.id);
+
+      console.log('Resultado da atualização do convite:', { error: updateError });
 
       if (updateError) {
         console.error('Erro ao atualizar status do convite:', updateError);

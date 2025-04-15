@@ -27,7 +27,7 @@ export const getUsersForRestaurant = async (restaurantId: string): Promise<UserW
     // Transform the data into a more usable format
     return data.map(item => {
       // Ensure profiles is treated as an object with expected properties
-      const profile = item.profiles as Profile || {} as Profile;
+      const profile = (item.profiles as unknown) as Profile || {} as Profile;
       
       return {
         id: profile.id || item.user_id,
@@ -235,3 +235,111 @@ function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
+
+// Nova função para aceitar convites diretamente
+export const acceptRestaurantInvite = async (
+  inviteId: string,
+  userId: string
+): Promise<boolean> => {
+  try {
+    console.log('Aceitando convite:', { inviteId, userId });
+    
+    // Buscar informações do convite
+    const { data: invite, error: inviteError } = await supabase
+      .from('restaurant_invites')
+      .select('id, restaurant_id, role, status')
+      .eq('id', inviteId)
+      .single();
+      
+    if (inviteError || !invite) {
+      console.error('Erro ao buscar convite:', inviteError);
+      toast.error('Convite inválido ou expirado.');
+      return false;
+    }
+    
+    console.log('Convite encontrado:', invite);
+    
+    // Verificar se o convite já foi aceito
+    if (invite.status === 'accepted') {
+      toast.info('Este convite já foi aceito.');
+      return false;
+    }
+    
+    // Verificar se o usuário já está vinculado ao restaurante
+    const { data: existingUser, error: existingUserError } = await supabase
+      .from('restaurant_users')
+      .select('*')
+      .eq('restaurant_id', invite.restaurant_id)
+      .eq('user_id', userId)
+      .maybeSingle();
+      
+    console.log('Verificação de usuário existente:', { existingUser, error: existingUserError });
+    
+    if (existingUser) {
+      console.log('Usuário já vinculado ao restaurante');
+      toast.info('Você já está vinculado a este restaurante.');
+      
+      // Atualizar o status do convite para aceito mesmo assim
+      await supabase
+        .from('restaurant_invites')
+        .update({
+          status: 'accepted',
+          accepted_at: new Date().toISOString()
+        })
+        .eq('id', inviteId);
+        
+      return true;
+    }
+    
+    // Inserir o usuário na tabela restaurant_users
+    const insertData = {
+      restaurant_id: invite.restaurant_id,
+      user_id: userId,
+      role: invite.role
+    };
+    
+    console.log('Inserindo usuário no restaurante:', insertData);
+    
+    const { error: insertError } = await supabase
+      .from('restaurant_users')
+      .insert(insertData);
+      
+    console.log('Resultado da inserção:', { error: insertError });
+    
+    if (insertError) {
+      // Verificar erro de chave duplicada
+      if (insertError.code === '23505') {
+        console.log('Erro de duplicação ao inserir usuário');
+        toast.info('Você já está vinculado a este restaurante.');
+      } else {
+        console.error('Erro ao vincular usuário ao restaurante:', insertError);
+        toast.error('Erro ao vincular você ao restaurante.');
+        return false;
+      }
+    }
+    
+    // Atualizar o status do convite para aceito
+    const { error: updateError } = await supabase
+      .from('restaurant_invites')
+      .update({
+        status: 'accepted',
+        accepted_at: new Date().toISOString()
+      })
+      .eq('id', inviteId);
+      
+    console.log('Resultado da atualização do convite:', { error: updateError });
+    
+    if (updateError) {
+      console.error('Erro ao atualizar status do convite:', updateError);
+      toast.error('Erro ao finalizar o processo de convite.');
+      return false;
+    }
+    
+    toast.success('Você foi vinculado ao restaurante com sucesso!');
+    return true;
+  } catch (error) {
+    console.error('Erro ao aceitar convite:', error);
+    toast.error('Ocorreu um erro ao aceitar o convite.');
+    return false;
+  }
+};
