@@ -1,3 +1,4 @@
+
 export interface PrinterConfig {
   id: string;
   restaurant_id: string;
@@ -51,17 +52,4 @@ export interface RestaurantUserInsert {
 
 export interface UserRoleUpdate {
   role: 'manager' | 'staff';
-}
-
-// Restaurant invite type
-export interface RestaurantInvite {
-  id: string;
-  restaurant_id: string;
-  email: string;
-  role: 'owner' | 'manager' | 'staff';
-  status: string;
-  invited_at: string;
-  accepted_at: string | null;
-  created_at: string;
-  updated_at: string;
 }

@@ -14,7 +14,7 @@ import {
 } from './services/orderItemsService';
 import {
   addOrderPayment as addPayment,
-  getPaymentMethods
+  getPaymentMethodsList as getPaymentMethods
 } from './services/paymentService';
 import { 
   getCurrentCashRegister,
@@ -26,7 +26,7 @@ export {
   updateItem as updateOrderItem,
   removeItem as removeOrderItem,
   addPayment as addOrderPayment,
-  getPaymentMethods
+  getPaymentMethodsList as getPaymentMethods
 };
 
 /**

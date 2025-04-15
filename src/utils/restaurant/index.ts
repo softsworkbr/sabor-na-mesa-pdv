@@ -1,4 +1,3 @@
-
 // Re-export all restaurant utility functions and types from a single entry point
 
 // Export types
@@ -7,10 +6,7 @@ export type {
   Profile,
   UserWithRole,
   RestaurantUserInsert,
-  UserRoleUpdate,
-  RestaurantInvite,
-  PrinterConfig,
-  CreatePrinterConfigProps
+  UserRoleUpdate
 } from './types';
 
 // Export table types
@@ -42,7 +38,7 @@ export type {
   PaymentMethod,
   OrderPayment,
   CreateOrderPaymentProps
-} from './types/orderTypes';
+} from './orderTypes';
 
 // Export restaurant management functions
 export {
@@ -55,8 +51,7 @@ export {
   getUsersForRestaurant,
   addUserToRestaurant,
   removeUserFromRestaurant,
-  updateUserRole,
-  acceptRestaurantInvite
+  updateUserRole
 } from './userManagement';
 
 // Export table management functions
@@ -84,8 +79,7 @@ export {
   calculateOrderTotal,
   addOrderPayment,
   getPaymentMethods,
-  completeOrderPayment,
-  updateOrderItemPrintStatus
+  completeOrderPayment
 } from './orderManagement';
 
 // Export printer management functions
@@ -95,6 +89,12 @@ export {
   updatePrinterConfig,
   deletePrinterConfig
 } from './printerManagement';
+
+// Export printer config types
+export type {
+  PrinterConfig,
+  CreatePrinterConfigProps
+} from './types';
 
 // Export cash register types
 export type {

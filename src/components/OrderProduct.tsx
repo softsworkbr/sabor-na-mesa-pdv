@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Minus, Plus, Trash2, MoreVertical, FileText } from "lucide-react";
-import { Printer } from "lucide-react";
+import { Printer, PrinterOff } from "lucide-react";
 import { OrderItem, ProductExtra } from "@/utils/restaurant";
 
 interface OrderProductProps {
@@ -65,7 +65,7 @@ const OrderProduct = ({
               disabled={disabled}
               title={item.printed_at ? 'Desmarcar como impresso' : 'Marcar como impresso'}
             >
-              <Printer className="h-4 w-4" />
+              {item.printed_at ? <Printer className="h-4 w-4" /> : <PrinterOff className="h-4 w-4" />}
             </Button>
           )}
           
