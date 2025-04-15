@@ -1,18 +1,26 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Minus, Plus, Trash2, MoreVertical, FileText } from "lucide-react";
+import { Printer, PrinterOff } from "lucide-react";
 import { OrderItem, ProductExtra } from "@/utils/restaurant";
 
 interface OrderProductProps {
   item: OrderItem;
   onChangeQuantity: (newQuantity: number) => void;
   onRemove: () => void;
+  onTogglePrintStatus?: (printed: boolean) => void;
   disabled?: boolean;
   isMobile?: boolean;
 }
 
-const OrderProduct = ({ item, onChangeQuantity, onRemove, disabled = false, isMobile = false }: OrderProductProps) => {
+const OrderProduct = ({ 
+  item, 
+  onChangeQuantity, 
+  onRemove, 
+  onTogglePrintStatus,
+  disabled = false, 
+  isMobile = false 
+}: OrderProductProps) => {
   return (
     <div className={`${isMobile ? 'p-2' : 'border-b p-3'} flex items-center gap-2 hover:bg-gray-50`}>
       <div className={`bg-gray-200 ${isMobile ? 'p-1 min-w-5' : 'p-2 min-w-6'} rounded-md text-center font-medium`}>
@@ -48,6 +56,19 @@ const OrderProduct = ({ item, onChangeQuantity, onRemove, disabled = false, isMo
 
       {!isMobile ? (
         <div className="flex items-center">
+          {onTogglePrintStatus && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-7 w-7 rounded-full ${item.printed_at ? 'text-green-600' : 'text-gray-400'}`}
+              onClick={() => onTogglePrintStatus(!item.printed_at)}
+              disabled={disabled}
+              title={item.printed_at ? 'Desmarcar como impresso' : 'Marcar como impresso'}
+            >
+              {item.printed_at ? <Printer className="h-4 w-4" /> : <PrinterOff className="h-4 w-4" />}
+            </Button>
+          )}
+          
           <Button 
             variant="ghost" 
             size="icon" 
