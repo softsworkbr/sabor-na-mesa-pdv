@@ -852,6 +852,24 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         </div>
       )}
 
+      {showPaymentModal && currentOrder && (
+        <PaymentModal
+          showModal={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onComplete={handleCompletePayment}
+          totalAmount={currentOrder.total_amount || orderItems.reduce((sum, item) => {
+            let itemTotal = item.price * item.quantity;
+            // Add extras if any
+            if (item.extras && item.extras.length > 0) {
+              itemTotal += item.extras.reduce((extraSum, extra) => 
+                extraSum + (extra.price * item.quantity), 0);
+            }
+            return sum + itemTotal;
+          }, 0)}
+          serviceFee={serviceFee}
+        />
+      )}
+
       <ObservationModal
         showModal={showObservationModal}
         onClose={() => setShowObservationModal(false)}
@@ -909,13 +927,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         initialSelectedExtras={selectedExtras}
       />
 
-      <PaymentModal
-        showModal={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        onComplete={handleCompletePayment}
-        totalAmount={total}
-        serviceFee={serviceFee}
-      />
       <PrinterSelectorModal
         showModal={showPrinterSelectorModal}
         onClose={() => setShowPrinterSelectorModal(false)}
@@ -927,6 +938,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
   );
 
   const handlePayment = async () => {
+    console.log("handlePayment called, orderId:", orderId);
+    
     if (!orderId) {
       toast.error("É necessário criar um pedido antes de realizar o pagamento");
       return;
@@ -934,8 +947,10 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
     setIsCashRegisterLoading(true);
     try {
+      console.log("Verificando caixa para o restaurante:", currentRestaurant?.id);
       // Verificar se existe um caixa aberto
       const cashRegister = await getCurrentCashRegister(currentRestaurant?.id || '');
+      console.log("Resultado da verificação do caixa:", cashRegister);
 
       if (!cashRegister) {
         toast.error("Não há caixa aberto. É necessário abrir o caixa antes de realizar pagamentos.");
@@ -943,10 +958,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       }
 
       // Se o caixa estiver aberto, prosseguir com o pagamento
+      console.log("Abrindo modal de pagamento");
       setShowPaymentModal(true);
     } catch (error: any) {
       console.error("Erro ao verificar caixa:", error);
-      toast.error("Erro ao verificar status do caixa. Tente novamente.");
+      toast.error(`Erro ao verificar status do caixa: ${error.message || 'Erro desconhecido'}. Tente novamente.`);
     } finally {
       setIsCashRegisterLoading(false);
     }
