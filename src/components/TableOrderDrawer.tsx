@@ -861,7 +861,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
             let itemTotal = item.price * item.quantity;
             // Add extras if any
             if (item.extras && item.extras.length > 0) {
-              itemTotal += item.extras.reduce((extraSum, extra) => 
+              itemTotal += item.extras.reduce((extraSum, extra) =>
                 extraSum + (extra.price * item.quantity), 0);
             }
             return sum + itemTotal;
@@ -939,7 +939,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
   const handlePayment = async () => {
     console.log("handlePayment called, orderId:", orderId);
-    
+
     if (!orderId) {
       toast.error("É necessário criar um pedido antes de realizar o pagamento");
       return;
@@ -1498,7 +1498,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
       // Construct the URL using the printer's IP address and endpoint (or default to /print if not specified)
       const endpoint = printerConfig.endpoint || '/print';
-      const url = `http://${printerConfig.ip_address}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+      const url = `https://${printerConfig.ip_address}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
 
       console.log(`Sending print request to ${url} for printer ${printerName}`);
 
