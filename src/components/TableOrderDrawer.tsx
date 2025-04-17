@@ -1303,58 +1303,62 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
     // Define receipt width and price column width
-    const RECEIPT_WIDTH = 32; // Total width of the receipt in characters
-    const PRICE_WIDTH = 10;   // Width reserved for the price column
+    const RECEIPT_WIDTH = 48; // Total width of the receipt in characters
+    const PRICE_COLUMN_START = 38; // Position where price column starts
+    const PRICE_WIDTH = 10; // Width of the price column
+
+    // Helper function to format monetary values with proper alignment
+    const formatMoneyValue = (value: number): string => {
+      // Format with 2 decimal places and replace dot with comma
+      return `R$ ${value.toFixed(2).replace('.', ',')}`;
+    };
 
     // Helper function to format text with proper alignment
     const formatLine = (leftText: string, rightText: string) => {
       // If the left text is too long, wrap it
-      if (leftText.length > RECEIPT_WIDTH - PRICE_WIDTH) {
+      if (leftText.length > PRICE_COLUMN_START - 2) { // -2 for spacing
         // Split the left text into multiple lines
         const lines: string[] = [];
         let currentLine = leftText;
 
-        while (currentLine.length > RECEIPT_WIDTH - PRICE_WIDTH) {
-          // Find the last space before the cutoff point
-          const cutPoint = currentLine.substring(0, RECEIPT_WIDTH - PRICE_WIDTH).lastIndexOf(' ');
-
-          // If no space found, force cut at the max length
-          const splitPoint = cutPoint > 0 ? cutPoint : RECEIPT_WIDTH - PRICE_WIDTH;
-
-          lines.push(currentLine.substring(0, splitPoint));
-          currentLine = currentLine.substring(splitPoint + 1);
+        while (currentLine.length > PRICE_COLUMN_START - 2) {
+          const cutPoint = PRICE_COLUMN_START - 2;
+          lines.push(currentLine.substring(0, cutPoint));
+          currentLine = currentLine.substring(cutPoint);
         }
 
-        // Add the remaining text
         if (currentLine.length > 0) {
           lines.push(currentLine);
         }
 
         // Format the first line with the price
-        const result = [
-          `${lines[0]}${' '.repeat(RECEIPT_WIDTH - lines[0].length - rightText.length)}${rightText}`
-        ];
+        // Calculate spaces needed to align the price at the right edge
+        const spacesNeeded = RECEIPT_WIDTH - lines[0].length - rightText.length;
+        let result = lines[0] + ' '.repeat(spacesNeeded) + rightText + '\n';
 
-        // Add the remaining lines with proper indentation
+        // Add the remaining lines without the price
         for (let i = 1; i < lines.length; i++) {
-          result.push(`   ${lines[i]}`); // Add indentation for wrapped lines
+          result += lines[i] + '\n';
         }
 
-        return result.join('\n');
-      } else {
-        // Simple case: left text fits on one line
-        return `${leftText}${' '.repeat(RECEIPT_WIDTH - leftText.length - rightText.length)}${rightText}`;
+        return result.trimEnd();
       }
+
+      // Simple case: left text fits on one line
+      // Calculate spaces needed to align the price at the right edge
+      const spacesNeeded = RECEIPT_WIDTH - leftText.length - rightText.length;
+      return leftText + ' '.repeat(spacesNeeded) + rightText;
     };
 
+    const customerName = order.customer_name || '';
     let text = "";
 
     // Header
-    text += "================================\n";
-    text += "        PEDIDO PARA COZINHA       \n";
-    text += `           Pedido #${order.id?.substring(0, 8) || ''}            \n`;
-    text += "================================\n";
-    text += `Data: ${dateStr} ${timeStr}    Mesa: ${table?.number || '-'}\n\n`;
+    text += "================================================\n";
+    text += "              PEDIDO PARA COZINHA               \n";
+    text += `              Pedido #${order.id?.substring(0, 8) || ''}               \n`;
+    text += "================================================\n";
+    text += `Data: ${dateStr} ${timeStr}            Mesa: ${table?.number || '-'}\n\n`;
 
     // Customer name if available
     if (customerName) {
@@ -1363,30 +1367,31 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
     // Items
     text += "ITENS DO PEDIDO:\n";
-    text += "--------------------------------\n";
+    text += "------------------------------------------------\n";
 
     items.forEach(item => {
       // Item name and price
       const itemText = `${item.quantity}x ${item.name}`;
-      const priceText = `R$ ${(item.price * item.quantity).toFixed(2).replace('.', ',')}`;
+      const priceText = formatMoneyValue(item.price * item.quantity);
 
       text += formatLine(itemText, priceText) + '\n';
-
-
 
       // Extras if available
       if (item.extras && item.extras.length > 0) {
         item.extras.forEach(extra => {
-          const extraText = `   +${extra.name}`;
-          const extraPriceText = `R$ ${(extra.price * item.quantity).toFixed(2).replace('.', ',')}`;
+          const extraText = `+ ${extra.name}`;
+          const extraPriceText = formatMoneyValue(extra.price * item.quantity);
 
-          text += formatLine(extraText, extraPriceText) + '\n';
+          // Adicionar indentação antes do "+" para alinhar corretamente
+          text += formatLine(`   ${extraText}`, extraPriceText) + '\n';
         });
       }
 
       // Observation if available
       if (item.observation) {
-        text += `   OBS: ${item.observation}\n`;
+        // Formatar a observação da mesma forma que os extras, mas sem preço
+        const obsText = `OBS: ${item.observation}`;
+        text += formatLine(`   ${obsText}`, '') + '\n';
       }
 
       // Add a blank line between items
@@ -1394,7 +1399,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     });
 
     // Footer
-    text += "--------------------------------\n";
+    text += "------------------------------------------------\n";
 
     // Order observation if available
     if (order.customer_name) {
@@ -1418,24 +1423,26 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     // Add a blank line before totals
     text += "\n";
 
-    // Format the subtotal
+    // Format the subtotal with right alignment
     const subtotalText = "SUBTOTAL:";
-    const subtotalPriceText = `R$ ${subtotal.toFixed(2).replace('.', ',')}`;
+    const subtotalPriceText = formatMoneyValue(subtotal);
     text += formatLine(subtotalText, subtotalPriceText) + '\n';
 
     // Add service fee if applicable
     if (order.service_fee && order.service_fee > 0) {
       const serviceFeeText = "TAXA DE SERVIÇO (10%):";
-      const serviceFeePriceText = `R$ ${order.service_fee.toFixed(2).replace('.', ',')}`;
+      const serviceFeePriceText = formatMoneyValue(order.service_fee);
       text += formatLine(serviceFeeText, serviceFeePriceText) + '\n';
 
       // Add total with service fee
       const totalText = "TOTAL:";
-      const totalPriceText = `R$ ${(subtotal + order.service_fee).toFixed(2).replace('.', ',')}`;
+      const totalPriceText = formatMoneyValue(subtotal + order.service_fee);
       text += formatLine(totalText, totalPriceText) + '\n';
     }
 
-    text += "================================\n";
+    text += "================================================\n";
+
+    console.log("Cupom", text);
 
     return text;
   };
@@ -1473,6 +1480,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     }
 
     text += "\n--------------------------------\n";
+
+    console.log("Cupom", text);
 
     return text;
   };
