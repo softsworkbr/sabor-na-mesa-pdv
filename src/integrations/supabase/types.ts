@@ -571,37 +571,37 @@ export type Database = {
       }
       restaurant_invites: {
         Row: {
-          accepted_at: string | null
-          created_at: string | null
-          email: string
           id: string
-          invited_at: string | null
           restaurant_id: string
+          email: string
           role: string
           status: string
-          updated_at: string | null
+          invited_at: string
+          accepted_at: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          accepted_at?: string | null
-          created_at?: string | null
-          email: string
           id?: string
-          invited_at?: string | null
           restaurant_id: string
+          email: string
           role: string
           status?: string
-          updated_at?: string | null
+          invited_at?: string
+          accepted_at?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
-          accepted_at?: string | null
-          created_at?: string | null
-          email?: string
           id?: string
-          invited_at?: string | null
           restaurant_id?: string
+          email?: string
           role?: string
           status?: string
-          updated_at?: string | null
+          invited_at?: string
+          accepted_at?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -610,7 +610,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
-          },
+          }
         ]
       }
       restaurant_users: {
@@ -618,7 +618,7 @@ export type Database = {
           created_at: string
           id: string
           restaurant_id: string
-          role: Database["public"]["Enums"]["user_restaurant_role"]
+          role: string
           updated_at: string
           user_id: string
         }
@@ -626,7 +626,7 @@ export type Database = {
           created_at?: string
           id?: string
           restaurant_id: string
-          role?: Database["public"]["Enums"]["user_restaurant_role"]
+          role?: string
           updated_at?: string
           user_id: string
         }
@@ -634,7 +634,7 @@ export type Database = {
           created_at?: string
           id?: string
           restaurant_id?: string
-          role?: Database["public"]["Enums"]["user_restaurant_role"]
+          role?: string
           updated_at?: string
           user_id?: string
         }
@@ -650,7 +650,7 @@ export type Database = {
             foreignKeyName: "restaurant_users_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
