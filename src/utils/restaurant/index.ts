@@ -112,3 +112,11 @@ export {
   createCashRegisterTransaction,
   getCashRegisterTransactions
 } from './cashRegisterManagement';
+
+// Export product variation management functions
+export {
+  createProductVariation,
+  updateProductVariation,
+  deleteProductVariation,
+  getProductVariations
+} from './productManagement';

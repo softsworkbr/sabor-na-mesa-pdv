@@ -1,4 +1,3 @@
-
 export interface ProductCategory {
   id: string;
   name: string;
@@ -7,6 +6,15 @@ export interface ProductCategory {
   description?: string;
   restaurant_id: string;
   has_extras?: boolean;
+  sort_order?: number;
+  active?: boolean;
+}
+
+export interface ProductVariation {
+  id: string;
+  product_id: string;
+  name: string;
+  price: number;
   sort_order?: number;
   active?: boolean;
 }
@@ -23,6 +31,8 @@ export interface Product {
   product_categories?: ProductCategory;
   category?: ProductCategory; // Added for easier category access
   extras?: ProductExtra[];
+  variations?: ProductVariation[];
+  has_variations?: boolean;
 }
 
 export interface ProductExtra {
