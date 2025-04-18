@@ -1,8 +1,9 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Minus, Plus, Trash2, MoreVertical, FileText, Printer } from "lucide-react";
+import { Minus, Plus, Trash2, MoreVertical, FileText, Printer, Coffee } from "lucide-react";
 import { OrderItem, ProductExtra } from "@/utils/restaurant";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 interface OrderProductProps {
   item: OrderItem;
@@ -14,6 +15,12 @@ interface OrderProductProps {
 }
 
 const OrderProduct = ({ item, onChangeQuantity, onRemove, onReprint, disabled = false, isMobile = false }: OrderProductProps) => {
+  // Verificar se o produto tem variação (pelo nome ou pelo variation_id)
+  const hasVariation = item.variation_id || item.name.includes(" - ");
+  
+  // Para produtos com variação, vamos exibir o nome completo como está no banco de dados
+  // Isso garante que o nome na tela seja idêntico ao da impressão
+
   return (
     <div className={`${isMobile ? 'p-2' : 'border-b p-3'} flex items-center gap-2 hover:bg-gray-50`}>
       <div className={`bg-gray-200 ${isMobile ? 'p-1 min-w-5' : 'p-2 min-w-6'} rounded-md text-center font-medium`}>
@@ -21,7 +28,7 @@ const OrderProduct = ({ item, onChangeQuantity, onRemove, onReprint, disabled = 
       </div>
       
       <div className="flex-grow min-w-0">
-        <div className="font-medium text-sm md:text-base truncate flex items-center">
+        <div className="font-medium text-sm md:text-base truncate flex items-center flex-wrap">
           {item.name}
           {item.printed_at && (
             <TooltipProvider>

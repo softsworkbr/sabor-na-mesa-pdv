@@ -977,26 +977,37 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
-            {availableVariations.map((variation) => (
-              <div key={variation.id} className="flex items-center justify-between space-x-2 border p-3 rounded-md">
-                <div className="flex items-center space-x-2">
-                  <input 
-                    type="radio" 
-                    id={`variation-${variation.id}`} 
-                    name="variation" 
-                    value={variation.id} 
-                    checked={selectedVariation?.id === variation.id}
-                    onChange={() => handleVariationSelect(variation)}
-                  />
-                  <Label htmlFor={`variation-${variation.id}`} className="font-medium">
-                    {variation.name}
-                  </Label>
-                </div>
-                <div className="font-semibold">
-                  {formatCurrency(variation.price)}
-                </div>
+            {availableVariations.length === 0 ? (
+              <div className="text-center py-4 text-gray-500">
+                <p>Nenhuma variação disponível para este produto.</p>
               </div>
-            ))}
+            ) : (
+              availableVariations.map((variation) => (
+                <div 
+                  key={variation.id} 
+                  className={`flex items-center justify-between space-x-2 border p-3 rounded-md cursor-pointer hover:bg-gray-50 ${selectedVariation?.id === variation.id ? 'border-blue-500 bg-blue-50' : ''}`}
+                  onClick={() => handleVariationSelect(variation)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <input 
+                      type="radio" 
+                      id={`variation-${variation.id}`} 
+                      name="variation" 
+                      value={variation.id} 
+                      checked={selectedVariation?.id === variation.id}
+                      onChange={() => handleVariationSelect(variation)}
+                      className="text-blue-600"
+                    />
+                    <Label htmlFor={`variation-${variation.id}`} className="font-medium cursor-pointer">
+                      {variation.name}
+                    </Label>
+                  </div>
+                  <div className="font-semibold">
+                    {formatCurrency(variation.price)}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
           
           <DialogFooter className="sm:justify-between">
@@ -1006,6 +1017,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
               onClick={() => {
                 setShowVariationsModal(false);
                 setSelectedProduct(null);
+                setSelectedVariation(null);
               }}
             >
               Cancelar
