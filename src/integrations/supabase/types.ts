@@ -485,12 +485,54 @@ export type Database = {
           },
         ]
       }
+      product_variations: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          id: string
+          name: string
+          price: number
+          product_id: string
+          sort_order: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          name: string
+          price: number
+          product_id: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          price?: number
+          product_id?: string
+          sort_order?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
           category_id: string
           created_at: string
           description: string | null
+          has_variations: boolean | null
           id: string
           image_url: string | null
           name: string
@@ -503,6 +545,7 @@ export type Database = {
           category_id: string
           created_at?: string
           description?: string | null
+          has_variations?: boolean | null
           id?: string
           image_url?: string | null
           name: string
@@ -515,6 +558,7 @@ export type Database = {
           category_id?: string
           created_at?: string
           description?: string | null
+          has_variations?: boolean | null
           id?: string
           image_url?: string | null
           name?: string
@@ -571,37 +615,37 @@ export type Database = {
       }
       restaurant_invites: {
         Row: {
-          id: string
-          restaurant_id: string
+          accepted_at: string | null
+          created_at: string | null
           email: string
+          id: string
+          invited_at: string | null
+          restaurant_id: string
           role: string
           status: string
-          invited_at: string
-          accepted_at: string | null
-          created_at: string
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
-          id?: string
-          restaurant_id: string
+          accepted_at?: string | null
+          created_at?: string | null
           email: string
+          id?: string
+          invited_at?: string | null
+          restaurant_id: string
           role: string
           status?: string
-          invited_at?: string
-          accepted_at?: string | null
-          created_at?: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
-          id?: string
-          restaurant_id?: string
+          accepted_at?: string | null
+          created_at?: string | null
           email?: string
+          id?: string
+          invited_at?: string | null
+          restaurant_id?: string
           role?: string
           status?: string
-          invited_at?: string
-          accepted_at?: string | null
-          created_at?: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -610,7 +654,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "restaurants"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       restaurant_users: {
@@ -618,7 +662,7 @@ export type Database = {
           created_at: string
           id: string
           restaurant_id: string
-          role: string
+          role: Database["public"]["Enums"]["user_restaurant_role"]
           updated_at: string
           user_id: string
         }
@@ -626,7 +670,7 @@ export type Database = {
           created_at?: string
           id?: string
           restaurant_id: string
-          role?: string
+          role?: Database["public"]["Enums"]["user_restaurant_role"]
           updated_at?: string
           user_id: string
         }
@@ -634,7 +678,7 @@ export type Database = {
           created_at?: string
           id?: string
           restaurant_id?: string
-          role?: string
+          role?: Database["public"]["Enums"]["user_restaurant_role"]
           updated_at?: string
           user_id?: string
         }
@@ -650,7 +694,7 @@ export type Database = {
             foreignKeyName: "restaurant_users_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
