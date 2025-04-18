@@ -54,7 +54,10 @@ export const checkPrinterServerStatus = async (): Promise<boolean> => {
     const response = await axios.get(`${DEFAULT_BASE_URL}/status`);
     return response.data?.status === 'online';
   } catch (error) {
-    console.error('Erro ao verificar status do servidor de impressão:', error);
+    // Apenas loga no console, não mostra toast nem propaga erro para o usuário
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Erro ao verificar status do servidor de impressão:', error);
+    }
     return false;
   }
 };

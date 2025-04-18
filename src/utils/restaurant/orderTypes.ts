@@ -1,6 +1,6 @@
 import { Product, ProductVariation as ProductVariationType } from "./productTypes";
 
-export type OrderStatus = "active" | "completed" | "cancelled" | "pending";
+export type OrderStatus = "active" | "completed" | "cancelled" | "pending" | "impress";
 export type PaymentStatus = "pending" | "paid" | "partial";
 
 export type ProductVariation = ProductVariationType;

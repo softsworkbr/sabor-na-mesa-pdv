@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { checkPrinterServerStatus, testPrinter } from '../services/printerServerService';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const PrintersPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -69,6 +70,22 @@ const PrintersPage = () => {
     } catch (error) {
       console.error('Erro ao testar impressora:', error);
       toast.error('Não foi possível realizar o teste de impressão');
+    }
+  };
+
+  const handleDeletePrinter = async (printerId: string) => {
+    if (window.confirm('Tem certeza que deseja excluir esta impressora?')) {
+      try {
+        await supabase
+          .from('printer_configs')
+          .delete()
+          .eq('id', printerId);
+        toast.success('Impressora excluída com sucesso!');
+        refetch();
+      } catch (error) {
+        toast.error('Erro ao excluir impressora.');
+        console.error(error);
+      }
     }
   };
 
@@ -174,6 +191,14 @@ const PrintersPage = () => {
                         title="Testar Impressão"
                       >
                         Testar
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeletePrinter(printer.id)}
+                        title="Excluir Impressora"
+                      >
+                        Excluir
                       </Button>
                     </div>
                   </TableCell>

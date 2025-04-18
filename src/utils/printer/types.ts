@@ -34,10 +34,10 @@ export interface PrintResponse {
 }
 
 export enum PrinterType {
-  COUNTER = 'counter',  // Balcão
-  KITCHEN = 'kitchen',  // Cozinha
-  BAR = 'bar',          // Bar
-  OTHER = 'other'       // Outro
+  COUNTER = 'Balcão',  // Balcão
+  KITCHEN = 'Cozinha',  // Cozinha
+  BAR = 'Bar',          // Bar
+  OTHER = 'Outro'       // Outro
 }
 
 // Interface compatível com a estrutura do banco de dados

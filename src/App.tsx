@@ -16,6 +16,7 @@ import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import React from "react";
+import { KitchenPrintListener } from "@/components/global/KitchenPrintListener";
 
 // ProtectedRoute component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -70,6 +71,7 @@ const App = () => {
       <BrowserRouter>
         <AuthProvider>
           <TooltipProvider>
+            <KitchenPrintListener />
             <Toaster />
             <Sonner position="top-right" />
             <AppRoutes />

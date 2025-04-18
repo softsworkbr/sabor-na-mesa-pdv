@@ -73,6 +73,8 @@ import PaymentModal, { PaymentItem } from "./modals/PaymentModal";
 import PrinterSelectorModal from "./modals/PrinterSelectorModal";
 import { Label } from "@/components/ui/label";
 import { formatCurrency } from "@/utils/format";
+import { generatePrintText } from "@/utils/restaurant/printHelpers";
+import { checkPrinterServerStatus } from "@/services/printerServerService";
 
 interface Table {
   id: string;
@@ -1178,9 +1180,33 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
   };
 
   const handlePrint = async (printerNames: string[]) => {
-    if (printerNames.length > 0 && currentOrder) {
-      try {
-        setLoading(true);
+    if (!currentOrder) {
+      toast.error("Nenhum pedido encontrado para imprimir");
+      return;
+    }
+    setLoading(true);
+    try {
+      // Verifica se o servidor de impressão está online
+      const isServerOnline = await checkPrinterServerStatus();
+      if (!isServerOnline) {
+        // Se não estiver online, só muda o status para 'impress' e retorna
+        await supabase
+          .from('orders')
+          .update({ status: 'impress' })
+          .eq('id', currentOrder.id);
+        toast.info('Servidor de impressão offline. O pedido foi marcado como "impress" e será impresso automaticamente quando possível.');
+        setLoading(false);
+        return;
+      }
+
+      // Se o servidor está online, segue o fluxo normal de impressão
+      if (printerNames.length > 0) {
+        // Atualiza o status do pedido para 'impress' antes de imprimir
+        await supabase
+          .from('orders')
+          .update({ status: 'impress' })
+          .eq('id', currentOrder.id);
+
         // Show loading toast
         const loadingToast = toast.loading(`Enviando impressão para ${printerNames.length} impressora${printerNames.length > 1 ? 's' : ''}...`);
 
@@ -1217,7 +1243,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
             setOrderItems(updatedItems);
 
             // Generate and print text for this single item
-            const singleItemText = generateSingleItemPrintText(currentOrder, itemToPrint, table);
+            const singleItemText = generatePrintText(currentOrder, [itemToPrint], table);
 
             // Send to selected printers
             for (const printerName of printerNames) {
@@ -1292,16 +1318,67 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
         // Save the selected printers for future use
         setSelectedPrinters(printerNames);
-      } catch (error: any) {
-        console.error("Error printing:", error);
-        toast.error(`Erro ao imprimir: ${error.message}`);
-      } finally {
-        setLoading(false);
+      } else {
+        toast.error("Selecione pelo menos uma impressora para imprimir");
       }
-    } else if (printerNames.length === 0) {
-      toast.error("Selecione pelo menos uma impressora para imprimir");
-    } else {
-      toast.error("Nenhum pedido encontrado para imprimir");
+    } catch (error: any) {
+      console.error("Error printing:", error);
+      toast.error(`Erro ao imprimir: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendPrintRequest = async (printerName: string, text: string) => {
+    try {
+      const { data: printerConfig, error: printerError } = await supabase
+        .from('printer_configs')
+        .select('*')
+        .eq('windows_printer_name', printerName);
+
+      if (printerError) {
+        console.error(`Error fetching printer config for ${printerName}:`, printerError);
+        return { success: false, printerName, error: printerError };
+      }
+
+      // Garante que printerConfig é sempre array para evitar problemas de tipagem
+      const configs = Array.isArray(printerConfig) ? printerConfig : [printerConfig];
+      if (!configs || configs.length === 0) {
+        console.error(`No printer config found for printer ${printerName}`);
+        return { success: false, printerName, error: 'No printer config found' };
+      }
+
+      let configToUse = configs[0];
+      if (configs.length > 1) {
+        console.warn(`Mais de uma impressora encontrada com o nome ${printerName}. Usando a primeira.`, configs);
+      }
+
+      if (!configToUse.ip_address) {
+        console.error(`No IP address configured for printer ${printerName}`);
+        return { success: false, printerName, error: 'No IP address configured' };
+      }
+
+      const endpoint = configToUse.endpoint || '/print';
+      const url = `https://${configToUse.ip_address}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+
+      console.log(`Sending print request to ${url} for printer ${printerName}`);
+
+      const response = await axios.post(url, {
+        printerName,
+        text,
+        options: {
+          align: "left",
+          font: "A",
+          doubleSize: false,
+          bold: true,
+          beep: true
+        }
+      });
+
+      return { success: true, printerName, response: response.data };
+    } catch (error) {
+      console.error(`Error printing to ${printerName}:`, error);
+      return { success: false, printerName, error };
     }
   };
 
@@ -1345,7 +1422,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       }
 
       // Generate print text for just this item
-      const singleItemText = generateSingleItemPrintText(currentOrder, item, table);
+      const singleItemText = generatePrintText(currentOrder, [item], table);
 
       // If no printers are selected, open the printer selector
       if (selectedPrinters.length === 0) {
@@ -1395,212 +1472,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       toast.error(`Erro ao processar item: ${error.message}`);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const generatePrintText = (order: Order, items: OrderItem[], table: Table | null) => {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('pt-BR');
-    const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-    // Define receipt width and price column width
-    const RECEIPT_WIDTH = 48; // Total width of the receipt in characters
-    const PRICE_COLUMN_START = 20; // Position where price column starts
-    const PRICE_WIDTH = 10; // Width of the price column
-
-    // Helper function to format monetary values with proper alignment
-    const formatMoneyValue = (value: number): string => {
-      return `R$ ${value.toFixed(2).replace('.', ',')}`;
-    };
-
-    // Helper function to format text with proper alignment using tabs
-    const formatLine = (leftText: string, rightText: string) => {
-      // Se o texto da esquerda for muito longo, quebramos em múltiplas linhas
-      if (leftText.length > PRICE_COLUMN_START - 2) {
-        const lines: string[] = [];
-        let currentLine = leftText;
-
-        while (currentLine.length > PRICE_COLUMN_START - 2) {
-          const cutPoint = PRICE_COLUMN_START - 2;
-          lines.push(currentLine.substring(0, cutPoint));
-          currentLine = currentLine.substring(cutPoint);
-        }
-
-        if (currentLine.length > 0) {
-          lines.push(currentLine);
-        }
-
-        // Usar múltiplas tabulações para aumentar o espaço entre o texto e o valor
-        let result = `${lines[0]}\t      ${rightText}\n`;
-
-        // Adicionar as linhas restantes sem o preço
-        for (let i = 1; i < lines.length; i++) {
-          result += lines[i] + '\n';
-        }
-
-        return result.trimEnd();
-      }
-
-      // Usar múltiplas tabulações para aumentar o espaço entre o texto e o valor
-      return `${leftText}\t\t      ${rightText}`;
-    };
-
-    const customerName = order.customer_name || '';
-    let text = "";
-
-    // Header
-    text += "=================================\n";
-    text += "               PEDIDO PARA COZINHA \n";
-    text += `                 Pedido #${order.id?.substring(0, 8) || ''} \n`;
-    text += "=================================\n";
-    text += `Data: ${dateStr} ${timeStr}            Mesa: ${table?.number || '-'}\n\n`;
-
-    // Customer name if available
-    if (customerName) {
-      text += `Cliente: ${customerName}\n\n`;
-    }
-
-    // Items
-    text += "ITENS DO PEDIDO:\n";
-    text += "---------------------------------------------------------\n";
-
-    items.forEach(item => {
-      const itemText = `${item.quantity}x ${item.name}`;
-      const priceText = formatMoneyValue(item.price * item.quantity);
-
-      text += formatLine(itemText, priceText) + '\n';
-
-      if (item.extras && item.extras.length > 0) {
-        item.extras.forEach(extra => {
-          const extraText = `+ ${extra.name}`;
-          const extraPriceText = formatMoneyValue(extra.price * item.quantity);
-
-          text += formatLine(`   ${extraText}`, extraPriceText) + '\n';
-        });
-      }
-
-      if (item.observation) {
-        const obsText = `OBS: ${item.observation}`;
-        text += formatLine(`   ${obsText}`, '') + '\n';
-      }
-
-      text += "\n";
-    });
-
-    // Footer
-    text += "---------------------------------------------------------\n";
-
-    if (order.customer_name) {
-      text += `Obs: Cliente ${order.customer_name}\n`;
-    }
-
-    const subtotal = items.reduce((sum, item) => {
-      let itemTotal = item.price * item.quantity;
-
-      if (item.extras && item.extras.length > 0) {
-        itemTotal += item.extras.reduce((extraSum, extra) =>
-          extraSum + (extra.price * item.quantity), 0);
-      }
-
-      return sum + itemTotal;
-    }, 0);
-
-    text += "\n";
-
-    const subtotalText = "SUBTOTAL:";
-    const subtotalPriceText = formatMoneyValue(subtotal);
-    text += formatLine(subtotalText, subtotalPriceText) + '\n';
-
-    if (order.service_fee && order.service_fee > 0) {
-      const serviceFeeText = "TAXA DE SERVIÇO (10%):";
-      const serviceFeePriceText = formatMoneyValue(order.service_fee);
-      text += formatLine(serviceFeeText, serviceFeePriceText) + '\n';
-
-      const totalText = "TOTAL:";
-      const totalPriceText = formatMoneyValue(subtotal + order.service_fee);
-      text += formatLine(totalText, totalPriceText) + '\n';
-    }
-
-    text += "=================================\n";
-
-    return text;
-  };
-
-
-  const generateSingleItemPrintText = (order: Order, item: OrderItem, table: Table | null) => {
-    const restaurantName = currentRestaurant?.name || "Restaurante";
-    const now = new Date();
-    const dateStr = now.toLocaleDateString();
-    const timeStr = now.toLocaleTimeString();
-
-    let text = "";
-
-    text += `${restaurantName}\n`;
-    text += "--------------------------------\n";
-    text += `Data: ${dateStr} - ${timeStr}\n`;
-    text += `Mesa: ${table ? table.number : "N/A"}\n`;
-    text += `Cliente: ${order.customer_name || "Não informado"}\n`;
-    text += `Pedido #: ${order.id?.substring(0, 8) || "Novo"}\n`;
-    text += "--------------------------------\n";
-    text += "IMPRESSÃO DE ITEM\n";
-    text += "--------------------------------\n\n";
-
-    text += `${item.quantity}x ${item.name}\n`;
-
-    if (item.observation) {
-      text += `  Obs: ${item.observation}\n`;
-    }
-
-    if (item.extras && item.extras.length > 0) {
-      item.extras.forEach(extra => {
-        text += `  + ${extra.name}\n`;
-      });
-    }
-
-    text += "\n--------------------------------\n";
-
-    return text;
-  };
-
-  const sendPrintRequest = async (printerName: string, text: string) => {
-    try {
-      const { data: printerConfig, error: printerError } = await supabase
-        .from('printer_configs')
-        .select('*')
-        .eq('windows_printer_name', printerName)
-        .single();
-
-      if (printerError) {
-        console.error(`Error fetching printer config for ${printerName}:`, printerError);
-        return { success: false, printerName, error: printerError };
-      }
-
-      if (!printerConfig.ip_address) {
-        console.error(`No IP address configured for printer ${printerName}`);
-        return { success: false, printerName, error: 'No IP address configured' };
-      }
-
-      const endpoint = printerConfig.endpoint || '/print';
-      const url = `https://${printerConfig.ip_address}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
-
-      console.log(`Sending print request to ${url} for printer ${printerName}`);
-
-      const response = await axios.post(url, {
-        printerName,
-        text,
-        options: {
-          align: "left",
-          font: "A",
-          doubleSize: false,
-          bold: true,
-          beep: true
-        }
-      });
-
-      return { success: true, printerName, response: response.data };
-    } catch (error) {
-      console.error(`Error printing to ${printerName}:`, error);
-      return { success: false, printerName, error };
     }
   };
 
