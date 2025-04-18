@@ -298,12 +298,12 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       // Use variation price if a variation is selected
       let productPrice = product.price;
       let productName = product.name;
-      
+
       if (selectedVariation) {
         productPrice = selectedVariation.price;
         productName = `${product.name} - ${selectedVariation.name}`;
       }
-      
+
       let totalPrice = productPrice;
       extras.forEach(extra => {
         totalPrice += extra.price;
@@ -319,9 +319,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       const currentExtrasKey = generateExtrasKey(extras);
 
       const existingItemIndex = orderItems.findIndex(item => {
-        const basicMatch = item.product_id === product.id && 
-                          item.observation === productObservation && 
-                          item.variation_id === (selectedVariation?.id || null);
+        const basicMatch = item.product_id === product.id &&
+          item.observation === productObservation &&
+          item.variation_id === (selectedVariation?.id || null);
 
         let extrasMatch = true;
         if (extras.length > 0 || (item.extras && item.extras.length > 0)) {
@@ -363,7 +363,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
       // Reset selected variation after adding to order
       setSelectedVariation(null);
-      
+
       toast.success(`"${productName}" adicionado ao pedido.`);
     } catch (error) {
       console.error("Error adding product to order:", error);
@@ -401,7 +401,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
           return;
         }
       }
-      
+
       if (productHasExtras) {
         const extras = await fetchProductExtras(productId);
         setAvailableExtras(extras);
@@ -420,7 +420,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
           return;
         }
       }
-      
+
       await addProductToOrder(product);
     }
   };
@@ -455,7 +455,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     }
 
     try {
-      const updatedItem = await updateOrderItem(itemId, { quantity });
+      const updatedItem = await updateOrderItem(itemId, {
+        quantity
+      });
 
       setOrderItems(orderItems.map(item =>
         item.id === itemId ? { ...item, quantity } : item
@@ -975,7 +977,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
               Escolha uma variação para {selectedProduct?.name}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             {availableVariations.length === 0 ? (
               <div className="text-center py-4 text-gray-500">
@@ -983,17 +985,17 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
               </div>
             ) : (
               availableVariations.map((variation) => (
-                <div 
-                  key={variation.id} 
+                <div
+                  key={variation.id}
                   className={`flex items-center justify-between space-x-2 border p-3 rounded-md cursor-pointer hover:bg-gray-50 ${selectedVariation?.id === variation.id ? 'border-blue-500 bg-blue-50' : ''}`}
                   onClick={() => handleVariationSelect(variation)}
                 >
                   <div className="flex items-center space-x-2">
-                    <input 
-                      type="radio" 
-                      id={`variation-${variation.id}`} 
-                      name="variation" 
-                      value={variation.id} 
+                    <input
+                      type="radio"
+                      id={`variation-${variation.id}`}
+                      name="variation"
+                      value={variation.id}
                       checked={selectedVariation?.id === variation.id}
                       onChange={() => handleVariationSelect(variation)}
                       className="text-blue-600"
@@ -1009,11 +1011,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
               ))
             )}
           </div>
-          
+
           <DialogFooter className="sm:justify-between">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => {
                 setShowVariationsModal(false);
                 setSelectedProduct(null);
@@ -1403,7 +1405,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
     // Define receipt width and price column width
     const RECEIPT_WIDTH = 48; // Total width of the receipt in characters
-    const PRICE_COLUMN_START = 52; // Position where price column starts
+    const PRICE_COLUMN_START = 20; // Position where price column starts
     const PRICE_WIDTH = 10; // Width of the price column
 
     // Helper function to format monetary values with proper alignment
@@ -1429,7 +1431,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         }
 
         // Usar múltiplas tabulações para aumentar o espaço entre o texto e o valor
-        let result = `${lines[0]}\t\t${rightText}\n`;
+        let result = `${lines[0]}\t      ${rightText}\n`;
 
         // Adicionar as linhas restantes sem o preço
         for (let i = 1; i < lines.length; i++) {
@@ -1440,12 +1442,13 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       }
 
       // Usar múltiplas tabulações para aumentar o espaço entre o texto e o valor
-      return `${leftText}\t\t${rightText}`;
+      return `${leftText}\t\t      ${rightText}`;
     };
 
     const customerName = order.customer_name || '';
     let text = "";
 
+    // Header
     text += "=================================\n";
     text += "               PEDIDO PARA COZINHA \n";
     text += `                 Pedido #${order.id?.substring(0, 8) || ''} \n`;
@@ -1522,6 +1525,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
     return text;
   };
+
 
   const generateSingleItemPrintText = (order: Order, item: OrderItem, table: Table | null) => {
     const restaurantName = currentRestaurant?.name || "Restaurante";
@@ -1602,15 +1606,16 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
 
   const handleVariationSelect = async (variation: ProductVariation) => {
     if (!selectedProduct) return;
-    
+
     setSelectedVariation(variation);
     setShowVariationsModal(false);
-    
+
     const productHasExtras = selectedProduct.category?.has_extras || false;
-    
+
     if (productHasExtras) {
       const extras = await fetchProductExtras(selectedProduct.id);
       setAvailableExtras(extras);
+
       setShowExtrasModal(true);
     } else {
       setShowObservationModal(true);

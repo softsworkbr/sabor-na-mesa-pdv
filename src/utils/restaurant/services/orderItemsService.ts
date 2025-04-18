@@ -1,7 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { OrderItem, CreateOrderItemProps, UpdateOrderItemProps } from '../types/orderTypes';
+import { OrderItem, CreateOrderItemProps, UpdateOrderItemProps } from '../orderTypes';
 import { convertToOrderItem } from '../helpers/orderHelpers';
 
 /**
@@ -9,8 +8,7 @@ import { convertToOrderItem } from '../helpers/orderHelpers';
  */
 export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderItem> => {
   try {
-    console.log("Adding order item with observation:", data.observation);
-    console.log("Adding order item with extras:", data.extras);
+    console.log("Adding order item with data:", JSON.stringify(data, null, 2));
     
     // Prepare data for database insertion
     const insertData: any = {
@@ -21,6 +19,9 @@ export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderIte
       quantity: data.quantity,
       observation: data.observation === "" ? null : data.observation
     };
+    
+    // Não incluímos o campo variation_id no insertData porque ele não existe na tabela order_items
+    // A informação da variação já está incluída no nome do produto (data.name)
     
     // Handle extras field
     if (data.extras && Array.isArray(data.extras) && data.extras.length > 0) {
@@ -35,13 +36,20 @@ export const addOrderItem = async (data: CreateOrderItemProps): Promise<OrderIte
       insertData.extras = null;
     }
     
+    console.log("Insert data prepared:", JSON.stringify(insertData, null, 2));
+    
     const { data: orderItem, error } = await supabase
       .from('order_items')
       .insert(insertData)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error from Supabase:", error);
+      throw error;
+    }
+
+    console.log("Order item created successfully:", orderItem);
 
     return convertToOrderItem(orderItem);
   } catch (error: any) {
