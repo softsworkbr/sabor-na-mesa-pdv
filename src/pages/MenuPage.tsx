@@ -92,9 +92,13 @@ import {
   getProductExtrasByRestaurant,
   getProductExtrasByCategory,
   assignExtrasToProduct,
-  getProductExtras
+  getProductExtras,
+  createProductVariation,
+  updateProductVariation,
+  deleteProductVariation,
+  getProductVariations
 } from "@/utils/restaurant/restaurantManagement";
-import { ProductExtra } from "@/utils/restaurant/productTypes";
+import { ProductExtra, ProductVariation } from "@/utils/restaurant/productTypes";
 
 interface MenuItem {
   id: string;
@@ -110,6 +114,7 @@ interface MenuItem {
   product_categories?: {
     name: string;
   }
+  has_variations?: boolean;
 }
 
 interface ProductCategory {
@@ -147,9 +152,17 @@ const extraSchema = z.object({
   active: z.boolean().default(true),
 });
 
+const variationSchema = z.object({
+  name: z.string().min(1, { message: "Nome da variação é obrigatório" }),
+  price: z.coerce.number().min(0, { message: "Preço não pode ser negativo" }),
+  active: z.boolean().default(true),
+  sort_order: z.number().default(0),
+});
+
 type CategoryFormValues = z.infer<typeof categorySchema>;
 type ProductFormValues = z.infer<typeof productSchema>;
 type ExtraFormValues = z.infer<typeof extraSchema>;
+type VariationFormValues = z.infer<typeof variationSchema>;
 
 const MenuPage = () => {
   const { currentRestaurant } = useAuth();
@@ -162,19 +175,25 @@ const MenuPage = () => {
   const [showProductDialog, setShowProductDialog] = useState(false);
   const [showExtraDialog, setShowExtraDialog] = useState(false);
   const [showProductExtras, setShowProductExtras] = useState(false);
+  const [showVariationsDialog, setShowVariationsDialog] = useState(false);
+  const [showVariationDialog, setShowVariationDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
   const [editingProduct, setEditingProduct] = useState<MenuItem | null>(null);
   const [editingExtra, setEditingExtra] = useState<ProductExtra | null>(null);
   const [selectedProductForExtras, setSelectedProductForExtras] = useState<MenuItem | null>(null);
+  const [selectedProductForVariations, setSelectedProductForVariations] = useState<MenuItem | null>(null);
   const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [showCategoriesTab, setShowCategoriesTab] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [extraToDelete, setExtraToDelete] = useState<string | null>(null);
+  const [variationToDelete, setVariationToDelete] = useState<string | null>(null);
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
   const [availableExtras, setAvailableExtras] = useState<ProductExtra[]>([]);
+  const [productVariations, setProductVariations] = useState<ProductVariation[]>([]);
+  const [isLoadingVariations, setIsLoadingVariations] = useState(false);
   
   const categoryForm = useForm<CategoryFormValues>({
     resolver: zodResolver(categorySchema),
@@ -207,6 +226,16 @@ const MenuPage = () => {
       price: 0,
       category_id: "",
       active: true,
+    },
+  });
+
+  const variationForm = useForm<VariationFormValues>({
+    resolver: zodResolver(variationSchema),
+    defaultValues: {
+      name: "",
+      price: 0,
+      active: true,
+      sort_order: 0,
     },
   });
 
@@ -412,6 +441,44 @@ const MenuPage = () => {
     }
   };
 
+  const openProductVariationsDialog = async (product: MenuItem) => {
+    setSelectedProductForVariations(product);
+    setIsLoadingVariations(true);
+    
+    try {
+      const variations = await getProductVariations(product.id);
+      setProductVariations(variations);
+    } catch (error) {
+      console.error("Error loading product variations:", error);
+      toast.error("Erro ao carregar variações do produto");
+    } finally {
+      setIsLoadingVariations(false);
+      setShowVariationsDialog(true);
+    }
+  };
+
+  const openVariationDialog = (product: MenuItem, variation?: ProductVariation) => {
+    setSelectedProductForVariations(product);
+    
+    if (variation) {
+      variationForm.reset({
+        name: variation.name,
+        price: variation.price,
+        active: variation.active,
+        sort_order: variation.sort_order,
+      });
+    } else {
+      variationForm.reset({
+        name: "",
+        price: 0,
+        active: true,
+        sort_order: 0,
+      });
+    }
+    
+    setShowVariationDialog(true);
+  };
+
   const closeCategoryDialog = () => {
     setShowCategoryDialog(false);
     setEditingCategory(null);
@@ -431,6 +498,17 @@ const MenuPage = () => {
     setShowProductExtras(false);
     setSelectedProductForExtras(null);
     setSelectedExtras([]);
+  };
+
+  const closeProductVariationsDialog = () => {
+    setShowVariationsDialog(false);
+    setSelectedProductForVariations(null);
+    setProductVariations([]);
+  };
+
+  const closeVariationDialog = () => {
+    setShowVariationDialog(false);
+    variationForm.reset();
   };
 
   const onSaveCategory = async (values: CategoryFormValues) => {
@@ -559,6 +637,36 @@ const MenuPage = () => {
     }
   };
 
+  const onSaveVariation = async (values: VariationFormValues) => {
+    if (!currentRestaurant || !selectedProductForVariations) return;
+    
+    setIsLoading(true);
+    try {
+      const variationData = {
+        name: values.name,
+        price: values.price,
+        active: values.active,
+        sort_order: values.sort_order,
+        product_id: selectedProductForVariations.id,
+        restaurant_id: currentRestaurant.id,
+      };
+
+      if (selectedProductForVariations.has_variations) {
+        await updateProductVariation(selectedProductForVariations.id, variationData);
+      } else {
+        await createProductVariation(variationData);
+      }
+      
+      closeVariationDialog();
+      await openProductVariationsDialog(selectedProductForVariations);
+    } catch (error: any) {
+      console.error('Error saving product variation:', error);
+      toast.error(`Erro ao salvar variação: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onSaveProductExtras = async () => {
     if (!selectedProductForExtras || !currentRestaurant) return;
     
@@ -579,6 +687,7 @@ const MenuPage = () => {
     setCategoryToDelete(categoryId);
     setProductToDelete(null);
     setExtraToDelete(null);
+    setVariationToDelete(null);
     setDeleteDialogOpen(true);
   };
 
@@ -586,6 +695,7 @@ const MenuPage = () => {
     setProductToDelete(productId);
     setCategoryToDelete(null);
     setExtraToDelete(null);
+    setVariationToDelete(null);
     setDeleteDialogOpen(true);
   };
 
@@ -593,6 +703,15 @@ const MenuPage = () => {
     setExtraToDelete(extraId);
     setCategoryToDelete(null);
     setProductToDelete(null);
+    setVariationToDelete(null);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteVariation = (variationId: string) => {
+    setVariationToDelete(variationId);
+    setCategoryToDelete(null);
+    setProductToDelete(null);
+    setExtraToDelete(null);
     setDeleteDialogOpen(true);
   };
 
@@ -628,6 +747,13 @@ const MenuPage = () => {
           await fetchExtrasByCategory(activeCategory);
         }
         setExtraToDelete(null);
+      } else if (variationToDelete) {
+        await deleteProductVariation(variationToDelete);
+        
+        if (selectedProductForVariations) {
+          await openProductVariationsDialog(selectedProductForVariations);
+        }
+        setVariationToDelete(null);
       }
     } catch (error: any) {
       toast.error(`Erro ao excluir: ${error.message}`);
@@ -817,6 +943,7 @@ const MenuPage = () => {
                           onEdit={() => openProductDialog(product)}
                           onDelete={() => confirmDeleteProduct(product.id)}
                           onManageExtras={() => openProductExtrasDialog(product)}
+                          onManageVariations={() => openProductVariationsDialog(product)}
                         />
                       ))
                     )}
@@ -872,6 +999,7 @@ const MenuPage = () => {
                             onEdit={() => openProductDialog(product)}
                             onDelete={() => confirmDeleteProduct(product.id)}
                             onManageExtras={() => openProductExtrasDialog(product)}
+                            onManageVariations={() => openProductVariationsDialog(product)}
                           />
                         ))
                       )
@@ -1430,6 +1558,197 @@ const MenuPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Product Variations Dialog */}
+      <Dialog open={showVariationsDialog} onOpenChange={closeProductVariationsDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Variações</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                Variações para: {selectedProductForVariations?.name}
+              </h3>
+              <Button onClick={() => selectedProductForVariations && openVariationDialog(selectedProductForVariations)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Variação
+              </Button>
+            </div>
+            
+            {isLoadingVariations ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : productVariations.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Nenhuma variação cadastrada para este produto.</p>
+                <p className="text-sm mt-2">Clique em "Nova Variação" para adicionar.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Preço</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Ordem</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {productVariations.map((variation) => (
+                      <TableRow key={variation.id}>
+                        <TableCell>{variation.name}</TableCell>
+                        <TableCell>R$ {variation.price.toFixed(2)}</TableCell>
+                        <TableCell>
+                          {variation.active ? (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              Ativo
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                              Inativo
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{variation.sort_order}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-yellow-600"
+                              onClick={() => selectedProductForVariations && openVariationDialog(selectedProductForVariations, variation)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-red-600"
+                              onClick={() => confirmDeleteVariation(variation.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={closeProductVariationsDialog}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Variation Form Dialog */}
+      <Dialog open={showVariationDialog} onOpenChange={closeVariationDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedProductForVariations && selectedProductForVariations.has_variations ? "Editar Variação" : "Nova Variação"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <Form {...variationForm}>
+            <form onSubmit={variationForm.handleSubmit(onSaveVariation)} className="space-y-4">
+              <FormField
+                control={variationForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome da Variação</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Pequeno, Médio, Grande" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={variationForm.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Preço (R$)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Este será o preço do produto com esta variação.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={variationForm.control}
+                  name="sort_order"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ordem de Exibição</FormLabel>
+                      <FormControl>
+                        <Input type="number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={variationForm.control}
+                  name="active"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-end space-x-3 space-y-0 rounded-md border p-3">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Ativo</FormLabel>
+                        <FormDescription>
+                          Variações inativas não aparecem para seleção.
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={closeVariationDialog}>
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={variationForm.formState.isSubmitting}>
+                  {variationForm.formState.isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    "Salvar Variação"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -1443,7 +1762,9 @@ const MenuPage = () => {
                 ? "Tem certeza que deseja excluir esta categoria? Esta ação não pode ser desfeita."
                 : productToDelete
                   ? "Tem certeza que deseja excluir este produto? Esta ação não pode ser desfeita."
-                  : "Tem certeza que deseja excluir este adicional? Esta ação não pode ser desfeita."
+                  : extraToDelete
+                    ? "Tem certeza que deseja excluir este adicional? Esta ação não pode ser desfeita."
+                    : "Tem certeza que deseja excluir esta variação? Esta ação não pode ser desfeita."
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1452,6 +1773,7 @@ const MenuPage = () => {
               setCategoryToDelete(null);
               setProductToDelete(null);
               setExtraToDelete(null);
+              setVariationToDelete(null);
             }}>
               Cancelar
             </AlertDialogCancel>
@@ -1476,12 +1798,14 @@ const MenuItemCard = ({
   item, 
   onEdit,
   onDelete,
-  onManageExtras
+  onManageExtras,
+  onManageVariations
 }: { 
   item: MenuItem;
   onEdit: () => void;
   onDelete: () => void;
   onManageExtras: () => void;
+  onManageVariations: () => void;
 }) => {
   return (
     <Card className={`${!item.active ? 'opacity-60' : ''}`}>
@@ -1490,10 +1814,14 @@ const MenuItemCard = ({
           <CardTitle className="text-lg">
             {item.name}
             {!item.active && <span className="ml-2 text-xs font-normal py-1 px-2 bg-red-100 text-red-800 rounded-full">Inativo</span>}
+            {item.has_variations && <span className="ml-2 text-xs font-normal py-1 px-2 bg-blue-100 text-blue-800 rounded-full">Variações</span>}
           </CardTitle>
           <div className="flex gap-2">
             <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={onManageExtras}>
               <PlusCircle className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-600" onClick={onManageVariations}>
+              <Coffee className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-yellow-600" onClick={onEdit}>
               <Edit className="h-4 w-4" />

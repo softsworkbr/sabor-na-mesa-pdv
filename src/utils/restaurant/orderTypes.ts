@@ -1,11 +1,15 @@
-import { Product } from "./productTypes";
+import { Product, ProductVariation as ProductVariationType } from "./productTypes";
 
 export type OrderStatus = "active" | "completed" | "cancelled" | "pending";
+export type PaymentStatus = "pending" | "paid" | "partial";
+
+export type ProductVariation = ProductVariationType;
 
 export interface OrderItem {
   id?: string;
   order_id?: string;
   product_id?: string;
+  variation_id?: string | null;
   name: string;
   price: number;
   quantity: number;
@@ -42,6 +46,7 @@ export interface UpdateOrderProps {
 export interface CreateOrderItemProps {
   order_id: string;
   product_id?: string;
+  variation_id?: string | null;
   name: string;
   price: number;
   quantity: number;

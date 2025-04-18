@@ -450,3 +450,154 @@ export const getProductExtras = async (productId: string) => {
     return [];
   }
 };
+
+// Product variations related functions
+export interface CreateProductVariationProps {
+  name: string;
+  price: number;
+  product_id: string;
+  restaurant_id: string;
+  active?: boolean;
+  sort_order?: number;
+}
+
+export interface UpdateProductVariationProps {
+  name?: string;
+  price?: number;
+  active?: boolean;
+  sort_order?: number;
+  product_id?: string;
+  restaurant_id?: string;
+}
+
+export const createProductVariation = async (data: CreateProductVariationProps) => {
+  try {
+    const { data: variation, error } = await supabase
+      .from('product_variations')
+      .insert({
+        name: data.name,
+        price: data.price,
+        product_id: data.product_id,
+        restaurant_id: data.restaurant_id,
+        active: data.active !== undefined ? data.active : true,
+        sort_order: data.sort_order || 0,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error(`Erro ao criar variação: ${error.message}`);
+      throw error;
+    }
+
+    // Update the product to indicate it has variations
+    const { error: productError } = await supabase
+      .from('products')
+      .update({ has_variations: true })
+      .eq('id', data.product_id);
+
+    if (productError) {
+      console.error('Error updating product has_variations flag:', productError);
+    }
+
+    toast.success('Variação criada com sucesso!');
+    return variation;
+  } catch (error: any) {
+    console.error('Error creating product variation:', error);
+    throw error;
+  }
+};
+
+export const updateProductVariation = async (variationId: string, data: UpdateProductVariationProps) => {
+  try {
+    const { data: updatedVariation, error } = await supabase
+      .from('product_variations')
+      .update(data)
+      .eq('id', variationId)
+      .select()
+      .single();
+
+    if (error) {
+      toast.error(`Erro ao atualizar variação: ${error.message}`);
+      throw error;
+    }
+
+    toast.success('Variação atualizada com sucesso!');
+    return updatedVariation;
+  } catch (error: any) {
+    console.error('Error updating product variation:', error);
+    throw error;
+  }
+};
+
+export const deleteProductVariation = async (variationId: string) => {
+  try {
+    // First, get the variation to know which product it belongs to
+    const { data: variation, error: getError } = await supabase
+      .from('product_variations')
+      .select('product_id')
+      .eq('id', variationId)
+      .single();
+
+    if (getError) {
+      toast.error(`Erro ao buscar variação: ${getError.message}`);
+      throw getError;
+    }
+
+    // Delete the variation
+    const { error } = await supabase
+      .from('product_variations')
+      .delete()
+      .eq('id', variationId);
+
+    if (error) {
+      toast.error(`Erro ao excluir variação: ${error.message}`);
+      throw error;
+    }
+
+    // Check if this was the last variation for the product
+    const { data: remainingVariations, error: countError } = await supabase
+      .from('product_variations')
+      .select('id')
+      .eq('product_id', variation.product_id);
+
+    if (countError) {
+      console.error('Error counting remaining variations:', countError);
+    } else if (remainingVariations.length === 0) {
+      // If no variations remain, update the product
+      const { error: updateError } = await supabase
+        .from('products')
+        .update({ has_variations: false })
+        .eq('id', variation.product_id);
+
+      if (updateError) {
+        console.error('Error updating product has_variations flag:', updateError);
+      }
+    }
+
+    toast.success('Variação excluída com sucesso!');
+  } catch (error: any) {
+    console.error('Error deleting product variation:', error);
+    throw error;
+  }
+};
+
+export const getProductVariations = async (productId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('product_variations')
+      .select('*')
+      .eq('product_id', productId)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      toast.error(`Erro ao buscar variações: ${error.message}`);
+      throw error;
+    }
+
+    return data || [];
+  } catch (error: any) {
+    console.error('Error fetching product variations:', error);
+    throw error;
+  }
+};

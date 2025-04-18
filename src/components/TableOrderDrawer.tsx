@@ -3,6 +3,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -26,6 +27,7 @@ import {
   OrderItem,
   CreateOrderItemProps,
   ProductExtra,
+  ProductVariation
 } from "@/utils/restaurant/orderTypes";
 import {
   Product,
@@ -69,6 +71,8 @@ import ObservationModal from "./modals/ObservationModal";
 import ExtrasModal from "./modals/ExtrasModal";
 import PaymentModal, { PaymentItem } from "./modals/PaymentModal";
 import PrinterSelectorModal from "./modals/PrinterSelectorModal";
+import { Label } from "@/components/ui/label";
+import { formatCurrency } from "@/utils/format";
 
 interface Table {
   id: string;
@@ -109,6 +113,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showPrinterSelectorModal, setShowPrinterSelectorModal] = useState(false);
   const [selectedPrinters, setSelectedPrinters] = useState<string[]>([]);
+  const [showVariationsModal, setShowVariationsModal] = useState(false);
+  const [availableVariations, setAvailableVariations] = useState<ProductVariation[]>([]);
+  const [selectedVariation, setSelectedVariation] = useState<ProductVariation | null>(null);
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
   const { currentRestaurant } = useAuth();
@@ -215,6 +222,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     setObservation("");
     setIsTableBlocked(false);
     setSelectedExtras([]);
+    setSelectedVariation(null);
   };
 
   const saveOrder = async () => {
@@ -260,9 +268,11 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       await addProductToOrder(selectedProduct, productObservation || observation, extrasToSave);
       setShowObservationModal(false);
       setShowExtrasModal(false);
+      setShowVariationsModal(false);
       setSelectedProduct(null);
       setObservation("");
       setSelectedExtras([]);
+      setSelectedVariation(null);
     } catch (error) {
       console.error("Error adding product with extras:", error);
       toast.error("Erro ao adicionar produto com adicionais");
@@ -285,7 +295,16 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         }
       }
 
-      let totalPrice = product.price;
+      // Use variation price if a variation is selected
+      let productPrice = product.price;
+      let productName = product.name;
+      
+      if (selectedVariation) {
+        productPrice = selectedVariation.price;
+        productName = `${product.name} - ${selectedVariation.name}`;
+      }
+      
+      let totalPrice = productPrice;
       extras.forEach(extra => {
         totalPrice += extra.price;
       });
@@ -300,7 +319,9 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
       const currentExtrasKey = generateExtrasKey(extras);
 
       const existingItemIndex = orderItems.findIndex(item => {
-        const basicMatch = item.product_id === product.id && item.observation === productObservation;
+        const basicMatch = item.product_id === product.id && 
+                          item.observation === productObservation && 
+                          item.variation_id === (selectedVariation?.id || null);
 
         let extrasMatch = true;
         if (extras.length > 0 || (item.extras && item.extras.length > 0)) {
@@ -329,7 +350,8 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         const newItem = await addOrderItem({
           order_id: currentOrderId,
           product_id: product.id,
-          name: product.name,
+          variation_id: selectedVariation?.id || null,
+          name: productName,
           price: totalPrice,
           quantity: 1,
           observation: productObservation || null,
@@ -339,7 +361,10 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         setOrderItems([...orderItems, newItem]);
       }
 
-      toast.success(`"${product.name}" adicionado ao pedido.`);
+      // Reset selected variation after adding to order
+      setSelectedVariation(null);
+      
+      toast.success(`"${productName}" adicionado ao pedido.`);
     } catch (error) {
       console.error("Error adding product to order:", error);
       toast.error("Erro ao adicionar produto");
@@ -359,12 +384,24 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     setSelectedProduct(null);
     setObservation("");
     setSelectedExtras([]);
+    setSelectedVariation(null);
 
     setSelectedProduct(product);
 
+    const productHasVariations = product.has_variations || false;
     const productHasExtras = product.category?.has_extras || false;
 
     if (withOptions) {
+      if (productHasVariations) {
+        const variations = await fetchProductVariations(productId);
+        setAvailableVariations(variations);
+
+        if (variations.length > 0) {
+          setShowVariationsModal(true);
+          return;
+        }
+      }
+      
       if (productHasExtras) {
         const extras = await fetchProductExtras(productId);
         setAvailableExtras(extras);
@@ -374,6 +411,16 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         setShowObservationModal(true);
       }
     } else {
+      if (productHasVariations) {
+        const variations = await fetchProductVariations(productId);
+        setAvailableVariations(variations);
+
+        if (variations.length > 0) {
+          setShowVariationsModal(true);
+          return;
+        }
+      }
+      
       await addProductToOrder(product);
     }
   };
@@ -874,6 +921,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                 setSelectedProduct(null);
                 setObservation("");
                 setSelectedExtras([]);
+                setSelectedVariation(null);
               })
               .catch(error => {
                 console.error("Error adding product with observation:", error);
@@ -901,6 +949,7 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
                 setShowExtrasModal(false);
                 setSelectedProduct(null);
                 setSelectedExtras([]);
+                setSelectedVariation(null);
               })
               .catch(error => {
                 console.error("Error adding product with extras:", error);
@@ -917,6 +966,53 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         availableExtras={availableExtras}
         initialSelectedExtras={selectedExtras}
       />
+
+      <Dialog open={showVariationsModal} onOpenChange={setShowVariationsModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Selecione a variação</DialogTitle>
+            <DialogDescription>
+              Escolha uma variação para {selectedProduct?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            {availableVariations.map((variation) => (
+              <div key={variation.id} className="flex items-center justify-between space-x-2 border p-3 rounded-md">
+                <div className="flex items-center space-x-2">
+                  <input 
+                    type="radio" 
+                    id={`variation-${variation.id}`} 
+                    name="variation" 
+                    value={variation.id} 
+                    checked={selectedVariation?.id === variation.id}
+                    onChange={() => handleVariationSelect(variation)}
+                  />
+                  <Label htmlFor={`variation-${variation.id}`} className="font-medium">
+                    {variation.name}
+                  </Label>
+                </div>
+                <div className="font-semibold">
+                  {formatCurrency(variation.price)}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <DialogFooter className="sm:justify-between">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => {
+                setShowVariationsModal(false);
+                setSelectedProduct(null);
+              }}
+            >
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <PrinterSelectorModal
         showModal={showPrinterSelectorModal}
@@ -1338,7 +1434,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     const customerName = order.customer_name || '';
     let text = "";
 
-    // Header
     text += "=================================\n";
     text += "               PEDIDO PARA COZINHA \n";
     text += `                 Pedido #${order.id?.substring(0, 8) || ''} \n`;
@@ -1493,6 +1588,74 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
     }
   };
 
+  const handleVariationSelect = async (variation: ProductVariation) => {
+    if (!selectedProduct) return;
+    
+    setSelectedVariation(variation);
+    setShowVariationsModal(false);
+    
+    const productHasExtras = selectedProduct.category?.has_extras || false;
+    
+    if (productHasExtras) {
+      const extras = await fetchProductExtras(selectedProduct.id);
+      setAvailableExtras(extras);
+      setShowExtrasModal(true);
+    } else {
+      setShowObservationModal(true);
+    }
+  };
+
+  const fetchProductVariations = async (productId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('product_variations')
+        .select('*')
+        .eq('product_id', productId)
+        .eq('active', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) {
+        console.error("Error fetching product variations:", error);
+        return [];
+      }
+
+      return data as ProductVariation[];
+    } catch (error) {
+      console.error("Error fetching product variations:", error);
+      return [];
+    }
+  };
+
+  const fetchProductExtras = async (productId: string) => {
+    try {
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .select('*, product_categories(*)')
+        .eq('id', productId)
+        .single();
+
+      if (productError) throw productError;
+
+      if (!product.product_categories.has_extras) {
+        return [];
+      }
+
+      const { data: extras, error: extrasError } = await supabase
+        .from('product_extras')
+        .select('*')
+        .eq('active', true)
+        .order('name');
+
+      if (extrasError) throw extrasError;
+
+      return extras || [];
+    } catch (error: any) {
+      console.error("Error fetching product extras:", error);
+      toast.error("Erro ao carregar adicionais do produto");
+      return [];
+    }
+  };
+
   const CategoryProductGroup = ({
     category,
     products,
@@ -1590,36 +1753,6 @@ const TableOrderDrawer = ({ isOpen, onClose, table, onTableStatusChange }: Table
         )}
       </div>
     );
-  };
-
-  const fetchProductExtras = async (productId: string) => {
-    try {
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .select('*, product_categories(*)')
-        .eq('id', productId)
-        .single();
-
-      if (productError) throw productError;
-
-      if (!product.product_categories.has_extras) {
-        return [];
-      }
-
-      const { data: extras, error: extrasError } = await supabase
-        .from('product_extras')
-        .select('*')
-        .eq('active', true)
-        .order('name');
-
-      if (extrasError) throw extrasError;
-
-      return extras || [];
-    } catch (error: any) {
-      console.error("Error fetching product extras:", error);
-      toast.error("Erro ao carregar adicionais do produto");
-      return [];
-    }
   };
 
   return (
