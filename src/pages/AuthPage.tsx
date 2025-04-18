@@ -436,6 +436,26 @@ const AuthPage: React.FC = () => {
     }
   };
 
+  const handleAcceptInvite = async (restaurant_id: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No user found');
+
+      const { error } = await supabase
+        .from('restaurant_users')
+        .insert({
+          restaurant_id,
+          user_id: user.id,
+          role: 'staff' as const // Explicitly type the role as a const
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error accepting invite:', error);
+      toast.error('Failed to accept invite.');
+    }
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-slate-50 p-4">
       <div className="w-full max-w-md">

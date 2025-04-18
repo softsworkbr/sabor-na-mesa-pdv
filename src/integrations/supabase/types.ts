@@ -493,6 +493,7 @@ export type Database = {
           name: string
           price: number
           product_id: string
+          restaurant_id: string
           sort_order: number | null
           updated_at: string | null
         }
@@ -503,6 +504,7 @@ export type Database = {
           name: string
           price: number
           product_id: string
+          restaurant_id: string
           sort_order?: number | null
           updated_at?: string | null
         }
@@ -513,6 +515,7 @@ export type Database = {
           name?: string
           price?: number
           product_id?: string
+          restaurant_id?: string
           sort_order?: number | null
           updated_at?: string | null
         }
@@ -522,6 +525,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variations_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
             referencedColumns: ["id"]
           },
         ]
